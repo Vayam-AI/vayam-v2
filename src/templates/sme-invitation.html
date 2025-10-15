@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Expert Invitation</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            line-height: 1.6;
+            color: #000000;
+            max-width: 600px;
+            margin: 0 auto;
+            padding: 0;
+            background-color: #ffffff;
+        }
+        
+        .container {
+            background-color: #ffffff;
+            margin: 0;
+            padding: 0;
+        }
+        
+        .header {
+            text-align: center;
+            padding: 40px 20px 20px 20px;
+            border-bottom: 1px solid #000000;
+            margin-bottom: 30px;
+        }
+        
+        .header h1 {
+            margin: 0;
+            font-size: 24px;
+            font-weight: 600;
+            color: #000000;
+        }
+        
+        .header p {
+            margin: 8px 0 0 0;
+            font-size: 14px;
+            color: #666666;
+        }
+        
+        .content {
+            padding: 0 20px;
+        }
+        
+        .content p {
+            margin: 16px 0;
+            color: #000000;
+        }
+        
+        .question-box {
+            background-color: #ffffff;
+            border: 1px solid #000000;
+            border-radius: 4px;
+            padding: 20px;
+            margin: 20px 0;
+        }
+        
+        .question-title {
+            font-size: 18px;
+            font-weight: 600;
+            color: #000000;
+            margin-bottom: 8px;
+        }
+        
+        .question-box p {
+            margin: 8px 0 0 0;
+            color: #000000;
+        }
+        
+        .cta-button {
+            display: inline-block;
+            background-color: #000000;
+            color: #ffffff;
+            text-decoration: none;
+            padding: 16px 32px;
+            border-radius: 4px;
+            font-size: 16px;
+            font-weight: 600;
+            text-align: center;
+            margin: 30px auto;
+            display: block;
+            width: fit-content;
+            border: 1px solid #000000;
+        }
+        
+        .footer {
+            margin-top: 40px;
+            padding: 20px;
+            border-top: 1px solid #000000;
+            font-size: 12px;
+            color: #666666;
+            text-align: center;
+        }
+        
+        .footer p {
+            margin: 4px 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>You're Invited as an Expert</h1>
+            <p>Share your expertise on an important question</p>
+        </div>
+
+        <div class="content">
+            <p>Hello,</p>
+            <p>You've been invited to contribute as a Subject Matter Expert to help solve this question:</p>
+            
+            <div class="question-box">
+                <div class="question-title">{{questionTitle}}</div>
+                {{#if questionDescription}}
+                <p>{{questionDescription}}</p>
+                {{/if}}
+            </div>
+            
+            <p>As an expert, you can add solutions, provide pros and cons, and vote on the best approaches.</p>
+            
+            <a href="{{questionUrl}}" class="cta-button">View Question & Contribute</a>
+        </div>
+
+        <div class="footer">
+            <p>This invitation was sent from Vayam Platform</p>
+            <p>If you have any questions, please contact our support team.</p>
+        </div>
+    </div>
+</body>
+</html>

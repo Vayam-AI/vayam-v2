@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>New Solution Notification</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            line-height: 1.6;
+            color: #000000;
+            max-width: 600px;
+            margin: 0 auto;
+            padding: 0;
+            background-color: #ffffff;
+        }
+        
+        .container {
+            background-color: #ffffff;
+            margin: 0;
+            padding: 0;
+        }
+        
+        .header {
+            text-align: center;
+            padding: 40px 20px 20px 20px;
+            border-bottom: 1px solid #000000;
+            margin-bottom: 30px;
+        }
+        
+        .header h1 {
+            margin: 0;
+            font-size: 24px;
+            font-weight: 600;
+            color: #000000;
+        }
+        
+        .header p {
+            margin: 8px 0 0 0;
+            font-size: 14px;
+            color: #666666;
+        }
+        
+        .content {
+            padding: 0 20px;
+        }
+        
+        .content p {
+            margin: 16px 0;
+            color: #000000;
+        }
+        
+        .question-title {
+            font-weight: 600;
+            color: #000000;
+        }
+        
+        .notification-card {
+            background-color: #ffffff;
+            border: 1px solid #000000;
+            border-radius: 4px;
+            padding: 20px;
+            margin: 20px 0;
+        }
+        
+        .notification-card h3 {
+            margin: 0 0 8px 0;
+            font-size: 16px;
+            font-weight: 600;
+            color: #000000;
+        }
+        
+        .notification-card p {
+            margin: 8px 0 0 0;
+            color: #000000;
+        }
+        
+        .cta-button {
+            display: inline-block;
+            background-color: #000000;
+            color: #ffffff;
+            text-decoration: none;
+            padding: 16px 32px;
+            border-radius: 4px;
+            font-size: 16px;
+            font-weight: 600;
+            text-align: center;
+            margin: 30px auto;
+            display: block;
+            width: fit-content;
+            border: 1px solid #000000;
+        }
+        
+        .footer {
+            margin-top: 40px;
+            padding: 20px;
+            border-top: 1px solid #000000;
+            font-size: 12px;
+            color: #666666;
+            text-align: center;
+        }
+        
+        .footer p {
+            margin: 4px 0;
+        }
+        
+        .footer a {
+            color: #666666;
+            text-decoration: underline;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>New Solution Added</h1>
+            <p>A new solution has been submitted to your question</p>
+        </div>
+        
+        <div class="content">
+            <p>Hello,</p>
+            
+            <p>A new solution has been added to the question: <span class="question-title">{{questionTitle}}</span></p>
+            
+            <div class="notification-card">
+                <h3>Solution by {{solutionAuthor}}</h3>
+                <p>{{solutionPreview}}</p>
+            </div>
+            
+            <a href="{{questionUrl}}" class="cta-button">
+                View Solution
+            </a>
+        </div>
+        
+        <div class="footer">
+            <p>This notification was sent from Vayam Platform</p>
+            {{#if unsubscribeUrl}}
+            <p><a href="{{unsubscribeUrl}}">Unsubscribe from notifications</a></p>
+            {{/if}}
+        </div>
+    </div>
+</body>
+</html>
