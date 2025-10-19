@@ -35,7 +35,6 @@ export default function Home() {
 
   return (
     <div className="flex flex-col h-screen">
-      <Navbar />
       <div className="flex-1 bg-background flex items-center justify-center">
         <div className="max-w-2xl mx-auto text-center px-4">
           <h1 className="text-4xl font-bold text-foreground mb-6">

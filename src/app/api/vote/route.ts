@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth-options";
 import { db } from "@/db/drizzle";
 import { votes, users, solutions, pros, cons, participants, questions } from "@/db/schema";
-import { eq, and } from "drizzle-orm";
+import { eq, and, isNull } from "drizzle-orm";
 import { z } from "zod";
 
 const voteSchema = z.object({
@@ -25,7 +25,9 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
+    console.log("Request body:", body);
     const validatedData = voteSchema.parse(body);
+    console.log("Validated data:", validatedData);
 
     // Get current user
     const currentUser = await db
@@ -72,6 +74,7 @@ export async function POST(request: NextRequest) {
       questionId = solution[0].questionId;
       solutionId = validatedData.id;
     } else if (validatedData.type === "pro") {
+      // console.log("Solution Id for pro vote:", validatedData.solutionId);
       const pro = await db
         .select({
           id: pros.id,
@@ -92,6 +95,7 @@ export async function POST(request: NextRequest) {
 
       questionId = pro[0].questionId!;
       prosId = validatedData.id;
+      solutionId = pro[0].solutionId;
     } else { // con
       const con = await db
         .select({
@@ -113,21 +117,27 @@ export async function POST(request: NextRequest) {
 
       questionId = con[0].questionId!;
       consId = validatedData.id;
+      solutionId = con[0].solutionId;
     }
 
-    // Check if user already voted on this item
+    // Check if user already voted on this specific item
     let whereCondition;
-    if (solutionId) {
+    if (validatedData.type === "solution") {
+      // For solution votes, check by solutionId only
       whereCondition = and(
         eq(votes.userId, userId),
-        eq(votes.solutionId, solutionId)
+        eq(votes.solutionId, solutionId!),
+        isNull(votes.prosId),
+        isNull(votes.consId)
       );
     } else if (prosId) {
+      // For pro votes, check by specific prosId
       whereCondition = and(
         eq(votes.userId, userId),
         eq(votes.prosId, prosId)
       );
     } else {
+      // For con votes, check by specific consId
       whereCondition = and(
         eq(votes.userId, userId),
         eq(votes.consId, consId!)
@@ -141,7 +151,7 @@ export async function POST(request: NextRequest) {
       .limit(1);
 
     if (existingVote.length > 0) {
-      // Update existing vote
+      // Update existing vote - only update the vote value and timestamp
       await db
         .update(votes)
         .set({
@@ -190,21 +200,28 @@ export async function POST(request: NextRequest) {
         .where(eq(questions.id, questionId));
     }
 
-    // Get updated vote count for the item
+    // Get updated vote count for the specific item that was voted on
     let voteCount = 0;
-    if (solutionId) {
+    if (validatedData.type === "solution") {
+      // Count votes for this specific solution (not pros/cons of the solution)
       const solutionVotes = await db
         .select()
         .from(votes)
-        .where(eq(votes.solutionId, solutionId));
+        .where(and(
+          eq(votes.solutionId, solutionId!),
+          isNull(votes.prosId),
+          isNull(votes.consId)
+        ));
       voteCount = solutionVotes.reduce((sum, vote) => sum + vote.vote, 0);
     } else if (prosId) {
+      // Count votes for this specific pro
       const proVotes = await db
         .select()
         .from(votes)
         .where(eq(votes.prosId, prosId));
       voteCount = proVotes.reduce((sum, vote) => sum + vote.vote, 0);
     } else if (consId) {
+      // Count votes for this specific con
       const conVotes = await db
         .select()
         .from(votes)
@@ -230,7 +247,7 @@ export async function POST(request: NextRequest) {
         { status: 400 }
       );
     }
-
+    console.error("Error processing vote:", error);
     return NextResponse.json(
       { success: false, message: "Internal server error" },
       { status: 500 }

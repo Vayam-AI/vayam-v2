@@ -17,8 +17,9 @@ export async function POST() {
     await db
       .update(users)
       .set({ 
-        mobile: "SKIPPED",
-        isMobileVerified: false // Keep this false since they didn't verify
+        mobile: null,
+        isMobileVerified: false, // Keep this false since they didn't verify
+        hasSkippedMobileVerification: true // Mark that user has skipped mobile verification
       })
       .where(eq(users.uid, uid));
 

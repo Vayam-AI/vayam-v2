@@ -137,7 +137,7 @@ export async function GET(
       )
       .orderBy(cons.createdAt) : [];
 
-    // Get vote counts and user votes for solutions
+    // Get vote counts and user votes for solutions (direct solution votes only, not pros/cons)
     const solutionVotes = solutionsResult.length > 0 ? await db
       .select({
         solutionId: votes.solutionId,
@@ -151,7 +151,9 @@ export async function GET(
             solutionsResult.map(s => sql`${s.id}`),
             sql`, `
           )})`,
-          sql`${votes.solutionId} IS NOT NULL`
+          sql`${votes.solutionId} IS NOT NULL`,
+          sql`${votes.prosId} IS NULL`,
+          sql`${votes.consId} IS NULL`
         )
       )
       .groupBy(votes.solutionId) : [];
@@ -160,6 +162,8 @@ export async function GET(
     const proVotes = prosResult.length > 0 ? await db
       .select({
         prosId: votes.prosId,
+        upVotes: sql<number>`SUM(CASE WHEN ${votes.vote} = 1 THEN 1 ELSE 0 END)`.as('upVotes'),
+        downVotes: sql<number>`SUM(CASE WHEN ${votes.vote} = -1 THEN 1 ELSE 0 END)`.as('downVotes'),
         voteCount: sql<number>`SUM(${votes.vote})`.as('voteCount'),
         userVote: sql<number>`MAX(CASE WHEN ${votes.userId} = ${userId} THEN ${votes.vote} ELSE NULL END)`.as('userVote'),
       })
@@ -179,6 +183,8 @@ export async function GET(
     const conVotes = consResult.length > 0 ? await db
       .select({
         consId: votes.consId,
+        upVotes: sql<number>`SUM(CASE WHEN ${votes.vote} = 1 THEN 1 ELSE 0 END)`.as('upVotes'),
+        downVotes: sql<number>`SUM(CASE WHEN ${votes.vote} = -1 THEN 1 ELSE 0 END)`.as('downVotes'),
         voteCount: sql<number>`SUM(${votes.vote})`.as('voteCount'),
         userVote: sql<number>`MAX(CASE WHEN ${votes.userId} = ${userId} THEN ${votes.vote} ELSE NULL END)`.as('userVote'),
       })
@@ -207,6 +213,8 @@ export async function GET(
               email: pro.userEmail,
               username: pro.username,
             },
+            upvotes: proVote?.upVotes || 0,
+            downvotes: proVote?.downVotes || 0,
             voteCount: proVote?.voteCount || 0,
             userVote: proVote?.userVote || null,
           };
@@ -223,6 +231,8 @@ export async function GET(
               email: con.userEmail,
               username: con.username,
             },
+            upvotes: conVote?.upVotes || 0,
+            downvotes: conVote?.downVotes || 0,
             voteCount: conVote?.voteCount || 0,
             userVote: conVote?.userVote || null,
           };

@@ -22,6 +22,7 @@ export const users = pgTable("users", {
   provider: varchar("provider", { length: 50 }).default("email"), // google, email
   isEmailVerified: boolean("is_email_verified").default(false),
   isMobileVerified: boolean("is_mobile_verified").default(false),
+  hasSkippedMobileVerification: boolean("has_skipped_mobile").default(false), // New field to track if user skipped mobile verification
   createdAt: timestamp("created_at").defaultNow(),
 });
 
@@ -86,17 +87,19 @@ export const votes = pgTable("votes", {
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 }, (table) => ({
-  // Ensure exactly one of solutionId, prosId, or consId is set
+  // Ensure that either a solutionId is provided with a prosId or consId, or a prosId or consId without solutionId
   checkExactlyOneReference: check("exactly_one_reference", 
     sql`(
-      (${table.solutionId} IS NOT NULL AND ${table.prosId} IS NULL AND ${table.consId} IS NULL) OR
-      (${table.solutionId} IS NULL AND ${table.prosId} IS NOT NULL AND ${table.consId} IS NULL) OR
-      (${table.solutionId} IS NULL AND ${table.prosId} IS NULL AND ${table.consId} IS NOT NULL)
+      (${table.solutionId} IS NOT NULL AND 
+        (${table.prosId} IS NOT NULL AND ${table.consId} IS NULL) OR
+        (${table.consId} IS NOT NULL AND ${table.prosId} IS NULL)) OR
+      (${table.solutionId} IS NULL AND 
+        (${table.prosId} IS NOT NULL OR ${table.consId} IS NOT NULL))
     )`
   ),
-  // Ensure each user can only vote once per item
-  uniqueUserVote: unique().on(table.userId, table.solutionId, table.prosId, table.consId),
 }));
+
+
 
 // Participants table (tracks user engagement)
 export const participants = pgTable("participants", {

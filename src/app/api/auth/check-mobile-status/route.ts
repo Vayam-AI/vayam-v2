@@ -16,6 +16,7 @@ export async function GET() {
       .select({
         mobile: users.mobile,
         isMobileVerified: users.isMobileVerified,
+        hasSkippedMobileVerification: users.hasSkippedMobileVerification
       })
       .from(users)
       .where(eq(users.uid, uid))
@@ -29,7 +30,7 @@ export async function GET() {
     
     // User needs mobile verification if they don't have a mobile number or it's not verified
     // BUT if mobile is "SKIPPED", they chose to skip so don't require verification
-    const needsMobileVerification = !userData.mobile || (!userData.isMobileVerified && userData.mobile !== "SKIPPED");
+    const needsMobileVerification = !userData.isMobileVerified && !userData.hasSkippedMobileVerification;
 
     return NextResponse.json({
       needsMobileVerification,
