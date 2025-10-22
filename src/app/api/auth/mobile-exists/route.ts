@@ -17,7 +17,7 @@ export async function POST(req: NextRequest) {
       .limit(1);
 
     return NextResponse.json({ exists: user.length > 0 });
-  } catch {
+  } catch(error) {
     return NextResponse.json(
       { error: "Internal server error" },
       { status: 500 }

@@ -88,15 +88,16 @@ export const votes = pgTable("votes", {
   updatedAt: timestamp("updated_at").defaultNow(),
 }, (table) => ({
   // Ensure that either a solutionId is provided with a prosId or consId, or a prosId or consId without solutionId
-  checkExactlyOneReference: check("exactly_one_reference", 
-    sql`(
-      (${table.solutionId} IS NOT NULL AND 
-        (${table.prosId} IS NOT NULL AND ${table.consId} IS NULL) OR
-        (${table.consId} IS NOT NULL AND ${table.prosId} IS NULL)) OR
-      (${table.solutionId} IS NULL AND 
-        (${table.prosId} IS NOT NULL OR ${table.consId} IS NOT NULL))
-    )`
-  ),
+ checkExactlyOneReference: check("exactly_one_reference", 
+  sql`
+    ${table.solutionId} IS NOT NULL AND (
+      (${table.prosId} IS NOT NULL AND ${table.consId} IS NULL) OR
+      (${table.prosId} IS NULL AND ${table.consId} IS NOT NULL)
+    )
+  `
+  )
+
+
 }));
 
 

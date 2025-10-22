@@ -13,6 +13,11 @@ const voteSchema = z.object({
   }).transform(val => val as 1 | -1),
 });
 
+const sanitizeId = (id: any) => {
+  if (typeof id === 'number' && id > 0) return id;
+  return null;
+};
+
 export async function POST(request: NextRequest) {
   try {
     const session = await auth();
@@ -151,6 +156,7 @@ export async function POST(request: NextRequest) {
       .limit(1);
 
     if (existingVote.length > 0) {
+      console.log("The vote data is: ", validatedData)
       // Update existing vote - only update the vote value and timestamp
       await db
         .update(votes)
@@ -165,12 +171,13 @@ export async function POST(request: NextRequest) {
         questionId,
         userId,
         vote: validatedData.vote,
-        solutionId: solutionId || null,
-        prosId: prosId || null,
-        consId: consId || null,
+        solutionId: sanitizeId(solutionId) || null,
+        prosId: sanitizeId(prosId) || null,
+        consId: sanitizeId(consId) || null,
         createdAt: new Date(),
         updatedAt: new Date(),
       };
+      console.log("Vote Data is: ", voteData)
 
       await db.insert(votes).values(voteData);
 

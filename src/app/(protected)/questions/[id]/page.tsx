@@ -260,11 +260,13 @@ export default function QuestionDetailsPage() {
   const canAddSolution =
     question?.allowedEmails.includes(session?.user?.email || "") || false;
 
-  const fetchQuestionDetails = useCallback(async () => {
-    if (dataFetched) return;
+  const fetchQuestionDetails = useCallback(async (forceRefetch = false) => {
+    if (dataFetched && !forceRefetch) return;
 
     try {
-      setLoading(true);
+      if (!forceRefetch) {
+        setLoading(true);
+      }
       const response = await axios.get(`/api/questions/${questionId}`);
       if (response.data.success) {
         setQuestion(response.data.data.question);
@@ -294,10 +296,12 @@ export default function QuestionDetailsPage() {
           })
         );
 
-        // Randomize solutions order for better user experience
-        const randomizedSolutions = shuffleArray(processedSolutions);
-        setSolutions(randomizedSolutions);
-        setDataFetched(true);
+        // Only randomize on initial fetch, not on refetch
+        const finalSolutions = forceRefetch ? processedSolutions : shuffleArray(processedSolutions);
+        setSolutions(finalSolutions);
+        if (!forceRefetch) {
+          setDataFetched(true);
+        }
       } else {
         setError(response.data.message || "Failed to fetch question details");
       }
@@ -309,7 +313,9 @@ export default function QuestionDetailsPage() {
       );
       toast.error("Failed to load question details");
     } finally {
-      setLoading(false);
+      if (!forceRefetch) {
+        setLoading(false);
+      }
     }
   }, [questionId, dataFetched]);
 
@@ -326,7 +332,7 @@ export default function QuestionDetailsPage() {
   ) => {
     // Store previous state for rollback
     const previousSolutions = [...solutions];
-    
+
     try {
       // Find current item's vote state for accurate optimistic updates
       let currentUserVote: number | null = null;
@@ -379,32 +385,32 @@ export default function QuestionDetailsPage() {
           pros:
             type === "pro"
               ? (solution.pros || []).map((pro) => {
-                  if (pro.id === itemId) {
-                    return {
-                      ...pro,
-                      userVote: newUserVote,
-                      upvotes: newUpvotes,
-                      downvotes: newDownvotes,
-                      voteCount: newUpvotes - newDownvotes,
-                    };
-                  }
-                  return pro;
-                })
+                if (pro.id === itemId) {
+                  return {
+                    ...pro,
+                    userVote: newUserVote,
+                    upvotes: newUpvotes,
+                    downvotes: newDownvotes,
+                    voteCount: newUpvotes - newDownvotes,
+                  };
+                }
+                return pro;
+              })
               : solution.pros,
           cons:
             type === "con"
               ? (solution.cons || []).map((con) => {
-                  if (con.id === itemId) {
-                    return {
-                      ...con,
-                      userVote: newUserVote,
-                      upvotes: newUpvotes,
-                      downvotes: newDownvotes,
-                      voteCount: newUpvotes - newDownvotes,
-                    };
-                  }
-                  return con;
-                })
+                if (con.id === itemId) {
+                  return {
+                    ...con,
+                    userVote: newUserVote,
+                    upvotes: newUpvotes,
+                    downvotes: newDownvotes,
+                    voteCount: newUpvotes - newDownvotes,
+                  };
+                }
+                return con;
+              })
               : solution.cons,
         }))
       );
@@ -419,6 +425,10 @@ export default function QuestionDetailsPage() {
       if (response.data.success) {
         const voteMessage = voteType === 1 ? "👍 Upvoted!" : "👎 Downvoted!";
         toast.success(voteMessage);
+        
+        // Refetch the question details to get the actual server state
+        // This ensures the UI reflects the true vote counts
+        await fetchQuestionDetails(true);
       } else {
         // Revert on failure
         setSolutions(previousSolutions);
@@ -496,12 +506,12 @@ export default function QuestionDetailsPage() {
           prev.map((solution) =>
             solution.id === selectedSolutionId
               ? {
-                  ...solution,
-                  [type === "pro" ? "pros" : "cons"]: [
-                    ...(solution[type === "pro" ? "pros" : "cons"] || []),
-                    response.data.data,
-                  ],
-                }
+                ...solution,
+                [type === "pro" ? "pros" : "cons"]: [
+                  ...(solution[type === "pro" ? "pros" : "cons"] || []),
+                  response.data.data,
+                ],
+              }
               : solution
           )
         );
@@ -747,741 +757,723 @@ export default function QuestionDetailsPage() {
           </motion.div>
 
           {/* Solutions List */}
-          {solutions.length === 0 ? (
+          <div className="space-y-6">
+            {/* Solutions Header */}
             <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              className="text-center py-16"
+              className="flex items-center justify-between"
+              initial={{ opacity: 0, x: -20 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ duration: 0.4, delay: 0.5 }}
             >
-              <MessageSquare className="h-16 w-16 text-muted-foreground mx-auto mb-4" />
-              <h3 className="text-xl font-semibold text-foreground mb-2">
-                No solutions yet
-              </h3>
-              <p className="text-muted-foreground text-base">
-                {canAddSolution
-                  ? "Be the first to add a solution to this question"
-                  : "Solutions will appear here when experts add them"}
-              </p>
-            </motion.div>
-          ) : (
-            <div className="space-y-6">
-              {/* Solutions Header */}
-              <motion.div
-                className="flex items-center justify-between"
-                initial={{ opacity: 0, x: -20 }}
-                animate={{ opacity: 1, x: 0 }}
-                transition={{ duration: 0.4, delay: 0.5 }}
-              >
-                <h2 className="text-xl font-semibold text-foreground">
-                  Solutions ({solutions.length})
-                </h2>
-              </motion.div>
-
-              {/* All Solutions */}
-              {solutions.map((solution, index) => (
+              <h2 className="text-xl font-semibold text-foreground">Solutions</h2>
+              {canAddSolution && (
                 <motion.div
-                  key={solution.id}
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ duration: 0.3, delay: index * 0.1 }}
-                  className="bg-card border border-border rounded-lg overflow-hidden"
+                  initial={{ scale: 0, opacity: 0 }}
+                  animate={{ scale: 1, opacity: 1 }}
+                  transition={{
+                    duration: 0.5,
+                    delay: 0.8,
+                    type: "spring",
+                    stiffness: 200,
+                  }}
+                  whileHover={{ scale: 1.05 }}
+                  whileTap={{ scale: 0.95 }}
                 >
-                  <Collapsible
-                    open={expandedSolutions.has(solution.id)}
-                    onOpenChange={() => toggleSolutionExpansion(solution.id)}
+                  <Button onClick={() => setShowSolutionDialog(true)} size="sm" title="Add Solution" className="gap-2">
+                    <PlusCircle className="h-4 w-4" />
+                    Add Solution
+                  </Button>
+                </motion.div>
+              )}
+            </motion.div>
+
+            {/* All Solutions */}
+            {solutions.length === 0 ? (
+              <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="text-center py-16">
+                <MessageSquare className="h-16 w-16 text-muted-foreground mx-auto mb-4" />
+                <h3 className="text-xl font-semibold text-foreground mb-2">No solutions yet</h3>
+                <p className="text-muted-foreground text-base">
+                  {canAddSolution
+                    ? "Be the first to add a solution to this question"
+                    : "Solutions will appear here when experts add them"}
+                </p>
+              </motion.div>
+            ) : (
+              <div className="space-y-6">
+                {solutions.map((solution, index) => (
+                  <motion.div
+                    key={solution.id}
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.3, delay: index * 0.1 }}
+                    className="bg-card border border-border rounded-lg overflow-hidden"
                   >
-                    {/* Solution Header */}
-                    <CollapsibleTrigger className="w-full">
-                      <motion.div
-                        className="flex items-center justify-between p-6 hover:bg-muted/30 transition-all duration-300 cursor-pointer"
-                        whileHover={{ scale: 1.005 }}
-                        whileTap={{ scale: 0.995 }}
-                      >
-                        <h3 className="text-xl font-bold text-foreground text-left">
-                          {solution.title}
-                        </h3>
-                        <motion.div className="relative">
-                          <motion.div
-                            initial={false}
-                            animate={{
-                              opacity: expandedSolutions.has(solution.id)
-                                ? 1
-                                : 0,
-                              scale: expandedSolutions.has(solution.id)
-                                ? 1
-                                : 0.8,
-                            }}
-                            transition={{ duration: 0.2, ease: "easeInOut" }}
-                            className="absolute inset-0 flex items-center justify-center"
-                          >
-                            <Minus className="h-5 w-5 text-muted-foreground transition-colors duration-200" />
-                          </motion.div>
-                          <motion.div
-                            initial={false}
-                            animate={{
-                              opacity: !expandedSolutions.has(solution.id)
-                                ? 1
-                                : 0,
-                              scale: !expandedSolutions.has(solution.id)
-                                ? 1
-                                : 0.8,
-                            }}
-                            transition={{ duration: 0.2, ease: "easeInOut" }}
-                            className="flex items-center justify-center"
-                          >
-                            <Plus className="h-5 w-5 text-muted-foreground transition-colors duration-200" />
+                    <Collapsible
+                      open={expandedSolutions.has(solution.id)}
+                      onOpenChange={() => toggleSolutionExpansion(solution.id)}
+                    >
+                      {/* Solution Header */}
+                      <CollapsibleTrigger className="w-full">
+                        <motion.div
+                          className="flex items-center justify-between p-6 hover:bg-muted/30 transition-all duration-300 cursor-pointer"
+                          whileHover={{ scale: 1.005 }}
+                          whileTap={{ scale: 0.995 }}
+                        >
+                          <h3 className="text-xl font-bold text-foreground text-left">
+                            {solution.title}
+                          </h3>
+                          <motion.div className="relative">
+                            <motion.div
+                              initial={false}
+                              animate={{
+                                opacity: expandedSolutions.has(solution.id)
+                                  ? 1
+                                  : 0,
+                                scale: expandedSolutions.has(solution.id)
+                                  ? 1
+                                  : 0.8,
+                              }}
+                              transition={{ duration: 0.2, ease: "easeInOut" }}
+                              className="absolute inset-0 flex items-center justify-center"
+                            >
+                              <Minus className="h-5 w-5 text-muted-foreground transition-colors duration-200" />
+                            </motion.div>
+                            <motion.div
+                              initial={false}
+                              animate={{
+                                opacity: !expandedSolutions.has(solution.id)
+                                  ? 1
+                                  : 0,
+                                scale: !expandedSolutions.has(solution.id)
+                                  ? 1
+                                  : 0.8,
+                              }}
+                              transition={{ duration: 0.2, ease: "easeInOut" }}
+                              className="flex items-center justify-center"
+                            >
+                              <Plus className="h-5 w-5 text-muted-foreground transition-colors duration-200" />
+                            </motion.div>
                           </motion.div>
                         </motion.div>
-                      </motion.div>
-                    </CollapsibleTrigger>
+                      </CollapsibleTrigger>
 
-                    <CollapsibleContent asChild>
-                      <motion.div
-                        initial={false}
-                        animate={{
-                          opacity: expandedSolutions.has(solution.id) ? 1 : 0,
-                        }}
-                        transition={{ duration: 0.3, ease: "easeInOut" }}
-                      >
-                        <div className="px-6 pb-6 border-t border-border/50">
-                          <motion.p
-                            className="text-muted-foreground text-base leading-relaxed mb-4 mt-4"
-                            initial={{ y: -10 }}
-                            animate={{ y: 0 }}
-                            transition={{ duration: 0.4, delay: 0.1 }}
-                          >
-                            {solution.content}
-                          </motion.p>
-                          {/* Pros and Cons Grid */}
-                          <motion.div
-                            className="grid grid-cols-1 lg:grid-cols-2 border-t border-border/50"
-                            initial={{ y: -10, opacity: 0 }}
-                            animate={{ y: 0, opacity: 1 }}
-                            transition={{ duration: 0.5, delay: 0.3 }}
-                          >
-                            {/* Pros Section */}
-                            <div className="p-6 border-r border-border/50">
-                              <div className="flex items-center justify-between mb-6">
-                                <div className="flex items-center gap-3">
-                                  <h4 className="text-xl font-bold bg-gradient-to-r from-green-600 to-green-700 bg-clip-text text-transparent">
-                                    Pros
-                                  </h4>
+                      <CollapsibleContent asChild>
+                        <motion.div
+                          initial={false}
+                          animate={{
+                            opacity: expandedSolutions.has(solution.id) ? 1 : 0,
+                          }}
+                          transition={{ duration: 0.3, ease: "easeInOut" }}
+                        >
+                          <div className="px-6 pb-6 border-t border-border/50">
+                            <motion.p
+                              className="text-muted-foreground text-base leading-relaxed mb-4 mt-4"
+                              initial={{ y: -10 }}
+                              animate={{ y: 0 }}
+                              transition={{ duration: 0.4, delay: 0.1 }}
+                            >
+                              {solution.content}
+                            </motion.p>
+                            {/* Pros and Cons Grid */}
+                            <motion.div
+                              className="grid grid-cols-1 lg:grid-cols-2 border-t border-border/50"
+                              initial={{ y: -10, opacity: 0 }}
+                              animate={{ y: 0, opacity: 1 }}
+                              transition={{ duration: 0.5, delay: 0.3 }}
+                            >
+                              {/* Pros Section */}
+                              <div className="p-6 border-r border-border/50">
+                                <div className="flex items-center justify-between mb-6">
+                                  <div className="flex items-center gap-3">
+                                    <h4 className="text-xl font-bold bg-gradient-to-r from-green-600 to-green-700 bg-clip-text text-transparent">
+                                      Pros
+                                    </h4>
+                                  </div>
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={() => {
+                                      setSelectedSolutionId(solution.id);
+                                      setShowProDialog(true);
+                                    }}
+                                    className="text-green-600 hover:text-green-700 hover:bg-green-50 dark:hover:bg-green-900/20 h-8 w-8 p-0 rounded-full"
+                                  >
+                                    <Plus className="h-4 w-4" />
+                                  </Button>
                                 </div>
-                                <Button
-                                  variant="ghost"
-                                  size="sm"
-                                  onClick={() => {
-                                    setSelectedSolutionId(solution.id);
-                                    setShowProDialog(true);
-                                  }}
-                                  className="text-green-600 hover:text-green-700 hover:bg-green-50 dark:hover:bg-green-900/20 h-8 w-8 p-0 rounded-full"
-                                >
-                                  <Plus className="h-4 w-4" />
-                                </Button>
-                              </div>
 
-                              {/* Pros List */}
-                              {!solution.pros || solution.pros.length === 0 ? (
-                                <p className="text-sm text-muted-foreground italic text-center py-8">
-                                  No pros yet. Be the first to add one!
-                                </p>
-                              ) : (
-                                <motion.div 
-                                  className="space-y-4"
-                                  layout
-                                >
-                                  {(() => {
-                                    const currentPage = getProsCurrentPage(
-                                      solution.id
-                                    );
-                                    const {
-                                      paginatedItems: prosToShow,
-                                      totalPages,
-                                    } = getSortedAndPaginatedItems(
-                                      solution.pros,
-                                      currentPage
-                                    );
+                                {/* Pros List */}
+                                {!solution.pros || solution.pros.length === 0 ? (
+                                  <p className="text-sm text-muted-foreground italic text-center py-8">
+                                    No pros yet. Be the first to add one!
+                                  </p>
+                                ) : (
+                                  <motion.div
+                                    className="space-y-4"
+                                    layout
+                                  >
+                                    {(() => {
+                                      const currentPage = getProsCurrentPage(
+                                        solution.id
+                                      );
+                                      const {
+                                        paginatedItems: prosToShow,
+                                        totalPages,
+                                      } = getSortedAndPaginatedItems(
+                                        solution.pros,
+                                        currentPage
+                                      );
 
-                                    return (
-                                      <>
-                                        {/* Pros Items */}
-                                        {prosToShow.map((pro, proIndex) => (
-                                          <motion.div
-                                            key={pro.id}
-                                            layoutId={`pro-${pro.id}`}
-                                            layout
-                                            initial={{ opacity: 0, y: 100, scale: 0.8 }}
-                                            animate={{ 
-                                              opacity: 1, 
-                                              y: 0, 
-                                              scale: 1,
-                                            }}
-                                            whileHover={{ 
-                                              scale: 1.02,
-                                              y: -4,
-                                              transition: { duration: 0.2 }
-                                            }}
-                                            transition={{
-                                              layout: { 
-                                                duration: 1.5,
-                                                ease: [0.25, 0.8, 0.25, 1],
-                                                type: "spring",
-                                                stiffness: 60,
-                                                damping: 20
-                                              },
-                                              duration: 0.6,
-                                              delay: proIndex * 0.08,
-                                              scale: { type: "spring", stiffness: 200, damping: 15 },
-                                              y: { 
-                                                type: "spring", 
-                                                stiffness: 150, 
-                                                damping: 25,
-                                                duration: 0.8
-                                              }
-                                            }}
-                                            style={{
-                                              transformOrigin: 'center bottom',
-                                              zIndex: prosToShow.length - proIndex
-                                            }}
-                                            className={`relative rounded-xl p-6 transition-all duration-500 backdrop-blur-sm ${
-                                              pro.userVote === 1
+                                      return (
+                                        <>
+                                          {/* Pros Items */}
+                                          {prosToShow.map((pro, proIndex) => (
+                                            <motion.div
+                                              key={pro.id}
+                                              layoutId={`pro-${pro.id}`}
+                                              layout
+                                              initial={{ opacity: 0, y: 100, scale: 0.8 }}
+                                              animate={{
+                                                opacity: 1,
+                                                y: 0,
+                                                scale: 1,
+                                              }}
+                                              whileHover={{
+                                                scale: 1.02,
+                                                y: -4,
+                                                transition: { duration: 0.2 }
+                                              }}
+                                              transition={{
+                                                layout: {
+                                                  duration: 1.5,
+                                                  ease: [0.25, 0.8, 0.25, 1],
+                                                  type: "spring",
+                                                  stiffness: 60,
+                                                  damping: 20
+                                                },
+                                                duration: 0.6,
+                                                delay: proIndex * 0.08,
+                                                scale: { type: "spring", stiffness: 200, damping: 15 },
+                                                y: {
+                                                  type: "spring",
+                                                  stiffness: 150,
+                                                  damping: 25,
+                                                  duration: 0.8
+                                                }
+                                              }}
+                                              style={{
+                                                transformOrigin: 'center bottom',
+                                                zIndex: prosToShow.length - proIndex
+                                              }}
+                                              className={`relative rounded-xl p-6 transition-all duration-500 backdrop-blur-sm ${pro.userVote === 1
                                                 ? "bg-gradient-to-r from-green-50 to-green-100 dark:from-green-950/30 dark:to-green-900/40 border-2 border-green-300 dark:border-green-600 shadow-xl shadow-green-200/30 dark:shadow-green-900/20"
                                                 : pro.userVote === -1
-                                                ? "bg-gradient-to-r from-red-50 to-red-100 dark:from-red-950/30 dark:to-red-900/40 border-2 border-red-300 dark:border-red-600 shadow-xl shadow-red-200/30 dark:shadow-red-900/20"
-                                                : "bg-gradient-to-r from-green-50/50 to-green-100/50 dark:from-green-950/10 dark:to-green-900/20 border border-green-200/60 dark:border-green-800/30 hover:shadow-lg hover:border-green-300/80 dark:hover:border-green-700/50"
-                                            }`}
-                                          >
-                                            <div className="space-y-4">
-                                              <div className="flex items-start justify-between">
-                                                <p className="text-base text-foreground leading-relaxed font-medium flex-1">
-                                                  {pro.content}
-                                                </p>
-                                                {(pro.upvotes || 0) + (pro.downvotes || 0) > 0 && (
-                                                  <div className="ml-4 flex items-center">
-                                                    <span className="text-sm font-bold text-green-600 dark:text-green-400 bg-green-100 dark:bg-green-900/30 px-2 py-1 rounded-full">
-                                                      {(pro.upvotes || 0) + (pro.downvotes || 0)}{" "}
-                                                      votes
-                                                    </span>
-                                                  </div>
-                                                )}
-                                              </div>
+                                                  ? "bg-gradient-to-r from-red-50 to-red-100 dark:from-red-950/30 dark:to-red-900/40 border-2 border-red-300 dark:border-red-600 shadow-xl shadow-red-200/30 dark:shadow-red-900/20"
+                                                  : "bg-gradient-to-r from-green-50/50 to-green-100/50 dark:from-green-950/10 dark:to-green-900/20 border border-green-200/60 dark:border-green-800/30 hover:shadow-lg hover:border-green-300/80 dark:hover:border-green-700/50"
+                                                }`}
+                                            >
+                                              <div className="space-y-4">
+                                                <div className="flex items-start justify-between">
+                                                  <p className="text-base text-foreground leading-relaxed font-medium flex-1">
+                                                    {pro.content}
+                                                  </p>
+                                                  {(pro.upvotes || 0) + (pro.downvotes || 0) > 0 && (
+                                                    <div className="ml-4 flex items-center">
+                                                      <span className="text-sm font-bold text-green-600 dark:text-green-400 bg-green-100 dark:bg-green-900/30 px-2 py-1 rounded-full">
+                                                        {(pro.upvotes || 0) + (pro.downvotes || 0)}{" "}
+                                                        votes
+                                                      </span>
+                                                    </div>
+                                                  )}
+                                                </div>
 
-                                              <div className="flex items-center justify-end pt-2 border-t border-green-200/50 dark:border-green-800/30">
-                                                <div className="flex items-center gap-3">
-                                                  <motion.div
-                                                    whileHover={{ scale: 1.1 }}
-                                                    whileTap={{ 
-                                                      scale: 0.85,
-                                                      transition: { duration: 0.1 }
-                                                    }}
-                                                    transition={{
-                                                      type: "spring",
-                                                      stiffness: 400,
-                                                      damping: 20,
-                                                    }}
-                                                  >
-                                                    <Button
-                                                      variant="ghost"
-                                                      size="sm"
-                                                      onClick={() =>
-                                                        handleVote(
-                                                          "pro",
-                                                          pro.id,
-                                                          1
-                                                        )
-                                                      }
-                                                      className={`h-10 w-10 rounded-full transition-all duration-300 group ${
-                                                        pro.userVote === 1
+                                                <div className="flex items-center justify-end pt-2 border-t border-green-200/50 dark:border-green-800/30">
+                                                  <div className="flex items-center gap-3">
+                                                    <motion.div
+                                                      whileHover={{ scale: 1.1 }}
+                                                      whileTap={{
+                                                        scale: 0.85,
+                                                        transition: { duration: 0.1 }
+                                                      }}
+                                                      transition={{
+                                                        type: "spring",
+                                                        stiffness: 400,
+                                                        damping: 20,
+                                                      }}
+                                                    >
+                                                      <Button
+                                                        variant="ghost"
+                                                        size="sm"
+                                                        onClick={() =>
+                                                          handleVote(
+                                                            "pro",
+                                                            pro.id,
+                                                            1
+                                                          )
+                                                        }
+                                                        className={`h-10 w-10 rounded-full transition-all duration-300 group ${pro.userVote === 1
                                                           ? "bg-green-500 hover:bg-green-600 text-white shadow-lg ring-2 ring-green-300"
                                                           : "hover:bg-green-100 dark:hover:bg-green-900/50 text-green-600"
-                                                      }`}
-                                                    >
-                                                      <motion.div
-                                                        animate={{
-                                                          y:
-                                                            pro.userVote === 1
-                                                              ? -1
-                                                              : 0,
-                                                          scale:
-                                                            pro.userVote === 1
-                                                              ? 1.1
-                                                              : 1,
-                                                        }}
-                                                        transition={{
-                                                          type: "spring",
-                                                          stiffness: 300,
-                                                        }}
+                                                          }`}
                                                       >
-                                                        <ArrowUp className="h-4 w-4" />{" "}
-                                                        {pro.upvotes || 0}
-                                                      </motion.div>
-                                                    </Button>
-                                                  </motion.div>
+                                                        <motion.div
+                                                          animate={{
+                                                            y:
+                                                              pro.userVote === 1
+                                                                ? -1
+                                                                : 0,
+                                                            scale:
+                                                              pro.userVote === 1
+                                                                ? 1.1
+                                                                : 1,
+                                                          }}
+                                                          transition={{
+                                                            type: "spring",
+                                                            stiffness: 300,
+                                                          }}
+                                                        >
+                                                          <ArrowUp className="h-4 w-4" />{" "}
+                                                          {pro.upvotes || 0}
+                                                        </motion.div>
+                                                      </Button>
+                                                    </motion.div>
 
-                                                  <motion.div
-                                                    whileHover={{ scale: 1.1 }}
-                                                    whileTap={{ scale: 0.95 }}
-                                                    transition={{
-                                                      type: "spring",
-                                                      stiffness: 400,
-                                                      damping: 20,
-                                                    }}
-                                                  >
-                                                    <Button
-                                                      variant="ghost"
-                                                      size="sm"
-                                                      onClick={() =>
-                                                        handleVote(
-                                                          "pro",
-                                                          pro.id,
-                                                          -1
-                                                        )
-                                                      }
-                                                      className={`h-10 w-10 rounded-full transition-all duration-300 group ${
-                                                        pro.userVote === -1
+                                                    <motion.div
+                                                      whileHover={{ scale: 1.1 }}
+                                                      whileTap={{ scale: 0.95 }}
+                                                      transition={{
+                                                        type: "spring",
+                                                        stiffness: 400,
+                                                        damping: 20,
+                                                      }}
+                                                    >
+                                                      <Button
+                                                        variant="ghost"
+                                                        size="sm"
+                                                        onClick={() =>
+                                                          handleVote(
+                                                            "pro",
+                                                            pro.id,
+                                                            -1
+                                                          )
+                                                        }
+                                                        className={`h-10 w-10 rounded-full transition-all duration-300 group ${pro.userVote === -1
                                                           ? "bg-red-500 hover:bg-red-600 text-white shadow-lg ring-2 ring-red-300"
                                                           : "hover:bg-red-100 dark:hover:bg-red-900/50 text-red-600"
-                                                      }`}
-                                                    >
-                                                      <motion.div
-                                                        animate={{
-                                                          y:
-                                                            pro.userVote === -1
-                                                              ? 1
-                                                              : 0,
-                                                          scale:
-                                                            pro.userVote === -1
-                                                              ? 1.1
-                                                              : 1,
-                                                        }}
-                                                        transition={{
-                                                          type: "spring",
-                                                          stiffness: 300,
-                                                        }}
+                                                          }`}
                                                       >
-                                                        <ArrowDown className="h-4 w-4" />{" "}
-                                                        {pro.downvotes || 0}
-                                                      </motion.div>
-                                                    </Button>
-                                                  </motion.div>
+                                                        <motion.div
+                                                          animate={{
+                                                            y:
+                                                              pro.userVote === -1
+                                                                ? 1
+                                                                : 0,
+                                                            scale:
+                                                              pro.userVote === -1
+                                                                ? 1.1
+                                                                : 1,
+                                                          }}
+                                                          transition={{
+                                                            type: "spring",
+                                                            stiffness: 300,
+                                                          }}
+                                                        >
+                                                          <ArrowDown className="h-4 w-4" />{" "}
+                                                          {pro.downvotes || 0}
+                                                        </motion.div>
+                                                      </Button>
+                                                    </motion.div>
+                                                  </div>
                                                 </div>
                                               </div>
-                                            </div>
-                                          </motion.div>
-                                        ))}
-
-                                        {/* Bottom Pros Pagination */}
-                                        {totalPages > 1 && (
-                                          <motion.div
-                                            className="flex justify-between items-center mt-4 p-3 bg-green-50/50 dark:bg-green-950/10 rounded-lg border border-green-200/30 dark:border-green-800/20"
-                                            initial={{
-                                              scale: 0.95,
-                                              opacity: 0,
-                                            }}
-                                            animate={{ scale: 1, opacity: 1 }}
-                                            transition={{
-                                              duration: 0.3,
-                                              delay: 0.2,
-                                            }}
-                                          >
-                                            <motion.div
-                                              whileHover={{ scale: 1.1 }}
-                                              whileTap={{ scale: 0.9 }}
-                                            >
-                                              <Button
-                                                variant="ghost"
-                                                size="sm"
-                                                onClick={() =>
-                                                  setProsPage(
-                                                    solution.id,
-                                                    Math.max(1, currentPage - 1)
-                                                  )
-                                                }
-                                                disabled={currentPage === 1}
-                                                className="h-10 w-10 p-0 rounded-full bg-white dark:bg-gray-800 shadow-md hover:shadow-lg transition-all duration-200 hover:scale-105 border border-green-200 dark:border-green-700 disabled:opacity-50 disabled:cursor-not-allowed"
-                                              >
-                                                <ChevronLeft className="h-5 w-5 text-green-600" />
-                                              </Button>
                                             </motion.div>
+                                          ))}
+
+                                          {/* Bottom Pros Pagination */}
+                                          {totalPages > 1 && (
                                             <motion.div
-                                              className="text-center"
-                                              initial={{ y: -5 }}
-                                              animate={{ y: 0 }}
+                                              className="flex justify-between items-center mt-4 p-3 bg-green-50/50 dark:bg-green-950/10 rounded-lg border border-green-200/30 dark:border-green-800/20"
+                                              initial={{
+                                                scale: 0.95,
+                                                opacity: 0,
+                                              }}
+                                              animate={{ scale: 1, opacity: 1 }}
                                               transition={{
                                                 duration: 0.3,
-                                                delay: 0.1,
+                                                delay: 0.2,
                                               }}
                                             >
-                                              <span className="text-sm font-medium text-green-700 dark:text-green-300">
-                                                Page {currentPage} of{" "}
-                                                {totalPages}
-                                              </span>
-                                              <p className="text-xs text-green-600/80 dark:text-green-400/80">
-                                                {solution.pros.length} Pro
-                                                Arguments
-                                              </p>
-                                            </motion.div>
-                                            <motion.div
-                                              whileHover={{ scale: 1.1 }}
-                                              whileTap={{ scale: 0.9 }}
-                                            >
-                                              <Button
-                                                variant="ghost"
-                                                size="sm"
-                                                onClick={() =>
-                                                  setProsPage(
-                                                    solution.id,
-                                                    Math.min(
-                                                      totalPages,
-                                                      currentPage + 1
-                                                    )
-                                                  )
-                                                }
-                                                disabled={
-                                                  currentPage === totalPages
-                                                }
-                                                className="h-10 w-10 p-0 rounded-full bg-white dark:bg-gray-800 shadow-md hover:shadow-lg transition-all duration-200 hover:scale-105 border border-green-200 dark:border-green-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                                              <motion.div
+                                                whileHover={{ scale: 1.1 }}
+                                                whileTap={{ scale: 0.9 }}
                                               >
-                                                <ChevronRight className="h-5 w-5 text-green-600" />
-                                              </Button>
+                                                <Button
+                                                  variant="ghost"
+                                                  size="sm"
+                                                  onClick={() =>
+                                                    setProsPage(
+                                                      solution.id,
+                                                      Math.max(1, currentPage - 1)
+                                                    )
+                                                  }
+                                                  disabled={currentPage === 1}
+                                                  className="h-10 w-10 p-0 rounded-full bg-white dark:bg-gray-800 shadow-md hover:shadow-lg transition-all duration-200 hover:scale-105 border border-green-200 dark:border-green-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                                                >
+                                                  <ChevronLeft className="h-5 w-5 text-green-600" />
+                                                </Button>
+                                              </motion.div>
+                                              <motion.div
+                                                className="text-center"
+                                                initial={{ y: -5 }}
+                                                animate={{ y: 0 }}
+                                                transition={{
+                                                  duration: 0.3,
+                                                  delay: 0.1,
+                                                }}
+                                              >
+                                                <span className="text-sm font-medium text-green-700 dark:text-green-300">
+                                                  Page {currentPage} of{" "}
+                                                  {totalPages}
+                                                </span>
+                                                <p className="text-xs text-green-600/80 dark:text-green-400/80">
+                                                  {solution.pros.length} Pro
+                                                  Arguments
+                                                </p>
+                                              </motion.div>
+                                              <motion.div
+                                                whileHover={{ scale: 1.1 }}
+                                                whileTap={{ scale: 0.9 }}
+                                              >
+                                                <Button
+                                                  variant="ghost"
+                                                  size="sm"
+                                                  onClick={() =>
+                                                    setProsPage(
+                                                      solution.id,
+                                                      Math.min(
+                                                        totalPages,
+                                                        currentPage + 1
+                                                      )
+                                                    )
+                                                  }
+                                                  disabled={
+                                                    currentPage === totalPages
+                                                  }
+                                                  className="h-10 w-10 p-0 rounded-full bg-white dark:bg-gray-800 shadow-md hover:shadow-lg transition-all duration-200 hover:scale-105 border border-green-200 dark:border-green-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                                                >
+                                                  <ChevronRight className="h-5 w-5 text-green-600" />
+                                                </Button>
+                                              </motion.div>
                                             </motion.div>
-                                          </motion.div>
-                                        )}
-                                      </>
-                                    );
-                                  })()}
-                                </motion.div>
-                              )}
-                            </div>
-
-                            {/* Cons Section */}
-                            <div className="p-6">
-                              <div className="flex items-center justify-between mb-6">
-                                <div className="flex items-center gap-3">
-                                  <h4 className="text-xl font-bold bg-gradient-to-r from-red-600 to-red-700 bg-clip-text text-transparent">
-                                    Cons
-                                  </h4>
-                                </div>
-                                <Button
-                                  variant="ghost"
-                                  size="sm"
-                                  onClick={() => {
-                                    setSelectedSolutionId(solution.id);
-                                    setShowConDialog(true);
-                                  }}
-                                  className="text-red-600 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-900/20 h-8 w-8 p-0 rounded-full"
-                                >
-                                  <Plus className="h-4 w-4" />
-                                </Button>
+                                          )}
+                                        </>
+                                      );
+                                    })()}
+                                  </motion.div>
+                                )}
                               </div>
 
-                              {/* Cons List */}
-                              {!solution.cons || solution.cons.length === 0 ? (
-                                <p className="text-sm text-muted-foreground italic text-center py-8">
-                                  No cons yet. Be the first to add one!
-                                </p>
-                              ) : (
-                                <motion.div 
-                                  className="space-y-4"
-                                  layout
-                                >
-                                  {(() => {
-                                    const currentPage = getConsCurrentPage(
-                                      solution.id
-                                    );
-                                    const {
-                                      paginatedItems: consToShow,
-                                      totalPages,
-                                    } = getSortedAndPaginatedItems(
-                                      solution.cons,
-                                      currentPage
-                                    );
+                              {/* Cons Section */}
+                              <div className="p-6">
+                                <div className="flex items-center justify-between mb-6">
+                                  <div className="flex items-center gap-3">
+                                    <h4 className="text-xl font-bold bg-gradient-to-r from-red-600 to-red-700 bg-clip-text text-transparent">
+                                      Cons
+                                    </h4>
+                                  </div>
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={() => {
+                                      setSelectedSolutionId(solution.id);
+                                      setShowConDialog(true);
+                                    }}
+                                    className="text-red-600 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-900/20 h-8 w-8 p-0 rounded-full"
+                                  >
+                                    <Plus className="h-4 w-4" />
+                                  </Button>
+                                </div>
 
-                                    return (
-                                      <>
-                                        {/* Cons Items */}
-                                        {consToShow.map((con, conIndex) => (
-                                          <motion.div
-                                            key={con.id}
-                                            layoutId={`con-${con.id}`}
-                                            layout
-                                            initial={{ opacity: 0, y: 100, scale: 0.8 }}
-                                            animate={{ 
-                                              opacity: 1, 
-                                              y: 0, 
-                                              scale: 1,
-                                            }}
-                                            whileHover={{ 
-                                              scale: 1.02,
-                                              y: -4,
-                                              transition: { duration: 0.2 }
-                                            }}
-                                            transition={{
-                                              layout: { 
-                                                duration: 1.5,
-                                                ease: [0.25, 0.8, 0.25, 1],
-                                                type: "spring",
-                                                stiffness: 60,
-                                                damping: 20
-                                              },
-                                              duration: 0.6,
-                                              delay: conIndex * 0.08,
-                                              scale: { type: "spring", stiffness: 200, damping: 15 },
-                                              y: { 
-                                                type: "spring", 
-                                                stiffness: 150, 
-                                                damping: 25,
-                                                duration: 0.8
-                                              }
-                                            }}
-                                            style={{
-                                              transformOrigin: 'center bottom',
-                                              zIndex: consToShow.length - conIndex
-                                            }}
-                                            className={`relative rounded-xl p-6 transition-all duration-500 backdrop-blur-sm ${
-                                              con.userVote === 1
+                                {/* Cons List */}
+                                {!solution.cons || solution.cons.length === 0 ? (
+                                  <p className="text-sm text-muted-foreground italic text-center py-8">
+                                    No cons yet. Be the first to add one!
+                                  </p>
+                                ) : (
+                                  <motion.div
+                                    className="space-y-4"
+                                    layout
+                                  >
+                                    {(() => {
+                                      const currentPage = getConsCurrentPage(
+                                        solution.id
+                                      );
+                                      const {
+                                        paginatedItems: consToShow,
+                                        totalPages,
+                                      } = getSortedAndPaginatedItems(
+                                        solution.cons,
+                                        currentPage
+                                      );
+
+                                      return (
+                                        <>
+                                          {/* Cons Items */}
+                                          {consToShow.map((con, conIndex) => (
+                                            <motion.div
+                                              key={con.id}
+                                              layoutId={`con-${con.id}`}
+                                              layout
+                                              initial={{ opacity: 0, y: 100, scale: 0.8 }}
+                                              animate={{
+                                                opacity: 1,
+                                                y: 0,
+                                                scale: 1,
+                                              }}
+                                              whileHover={{
+                                                scale: 1.02,
+                                                y: -4,
+                                                transition: { duration: 0.2 }
+                                              }}
+                                              transition={{
+                                                layout: {
+                                                  duration: 1.5,
+                                                  ease: [0.25, 0.8, 0.25, 1],
+                                                  type: "spring",
+                                                  stiffness: 60,
+                                                  damping: 20
+                                                },
+                                                duration: 0.6,
+                                                delay: conIndex * 0.08,
+                                                scale: { type: "spring", stiffness: 200, damping: 15 },
+                                                y: {
+                                                  type: "spring",
+                                                  stiffness: 150,
+                                                  damping: 25,
+                                                  duration: 0.8
+                                                }
+                                              }}
+                                              style={{
+                                                transformOrigin: 'center bottom',
+                                                zIndex: consToShow.length - conIndex
+                                              }}
+                                              className={`relative rounded-xl p-6 transition-all duration-500 backdrop-blur-sm ${con.userVote === 1
                                                 ? "bg-gradient-to-r from-green-50 to-green-100 dark:from-green-950/30 dark:to-green-900/40 border-2 border-green-300 dark:border-green-600 shadow-xl shadow-green-200/30 dark:shadow-green-900/20"
                                                 : con.userVote === -1
-                                                ? "bg-gradient-to-r from-red-50 to-red-100 dark:from-red-950/30 dark:to-red-900/40 border-2 border-red-300 dark:border-red-600 shadow-xl shadow-red-200/30 dark:shadow-red-900/20"
-                                                : "bg-gradient-to-r from-red-50/50 to-red-100/50 dark:from-red-950/10 dark:to-red-900/20 border border-red-200/60 dark:border-red-800/30 hover:shadow-lg hover:border-red-300/80 dark:hover:border-red-700/50"
-                                            }`}
-                                          >
-                                            <div className="space-y-4">
-                                              <div className="flex items-start justify-between">
-                                                <p className="text-base text-foreground leading-relaxed font-medium flex-1">
-                                                  {con.content}
-                                                </p>
-                                                {(con.upvotes || 0) + (con.downvotes || 0) > 0 && (
-                                                  <div className="ml-4 flex items-center">
-                                                    <span className="text-sm font-bold text-red-600 dark:text-red-400 bg-red-100 dark:bg-red-900/30 px-2 py-1 rounded-full">
-                                                      {(con.upvotes || 0) + (con.downvotes || 0)}{" "}
-                                                      votes
-                                                    </span>
-                                                  </div>
-                                                )}
-                                              </div>
+                                                  ? "bg-gradient-to-r from-red-50 to-red-100 dark:from-red-950/30 dark:to-red-900/40 border-2 border-red-300 dark:border-red-600 shadow-xl shadow-red-200/30 dark:shadow-red-900/20"
+                                                  : "bg-gradient-to-r from-red-50/50 to-red-100/50 dark:from-red-950/10 dark:to-red-900/20 border border-red-200/60 dark:border-red-800/30 hover:shadow-lg hover:border-red-300/80 dark:hover:border-red-700/50"
+                                                }`}
+                                            >
+                                              <div className="space-y-4">
+                                                <div className="flex items-start justify-between">
+                                                  <p className="text-base text-foreground leading-relaxed font-medium flex-1">
+                                                    {con.content}
+                                                  </p>
+                                                  {(con.upvotes || 0) + (con.downvotes || 0) > 0 && (
+                                                    <div className="ml-4 flex items-center">
+                                                      <span className="text-sm font-bold text-red-600 dark:text-red-400 bg-red-100 dark:bg-red-900/30 px-2 py-1 rounded-full">
+                                                        {(con.upvotes || 0) + (con.downvotes || 0)}{" "}
+                                                        votes
+                                                      </span>
+                                                    </div>
+                                                  )}
+                                                </div>
 
-                                              <div className="flex items-center justify-end pt-2 border-t border-red-200/50 dark:border-red-800/30">
-                                                <div className="flex items-center gap-3">
-                                                  <motion.div
-                                                    whileHover={{ scale: 1.1 }}
-                                                    whileTap={{ scale: 0.95 }}
-                                                    transition={{
-                                                      type: "spring",
-                                                      stiffness: 400,
-                                                      damping: 20,
-                                                    }}
-                                                  >
-                                                    <Button
-                                                      variant="ghost"
-                                                      size="sm"
-                                                      onClick={() =>
-                                                        handleVote(
-                                                          "con",
-                                                          con.id,
-                                                          1
-                                                        )
-                                                      }
-                                                      className={`h-10 w-10 rounded-full transition-all duration-300 group ${
-                                                        con.userVote === 1
+                                                <div className="flex items-center justify-end pt-2 border-t border-red-200/50 dark:border-red-800/30">
+                                                  <div className="flex items-center gap-3">
+                                                    <motion.div
+                                                      whileHover={{ scale: 1.1 }}
+                                                      whileTap={{ scale: 0.95 }}
+                                                      transition={{
+                                                        type: "spring",
+                                                        stiffness: 400,
+                                                        damping: 20,
+                                                      }}
+                                                    >
+                                                      <Button
+                                                        variant="ghost"
+                                                        size="sm"
+                                                        onClick={() =>
+                                                          handleVote(
+                                                            "con",
+                                                            con.id,
+                                                            1
+                                                          )
+                                                        }
+                                                        className={`h-10 w-10 rounded-full transition-all duration-300 group ${con.userVote === 1
                                                           ? "bg-green-500 hover:bg-green-600 text-white shadow-lg ring-2 ring-green-300"
                                                           : "hover:bg-green-100 dark:hover:bg-green-900/50 text-green-600"
-                                                      }`}
-                                                    >
-                                                      <motion.div
-                                                        animate={{
-                                                          y:
-                                                            con.userVote === 1
-                                                              ? -1
-                                                              : 0,
-                                                          scale:
-                                                            con.userVote === 1
-                                                              ? 1.1
-                                                              : 1,
-                                                        }}
-                                                        transition={{
-                                                          type: "spring",
-                                                          stiffness: 300,
-                                                        }}
+                                                          }`}
                                                       >
-                                                        <ArrowUp className="h-4 w-4" />{" "}
-                                                        {con.upvotes || 0}
-                                                      </motion.div>
-                                                    </Button>
-                                                  </motion.div>
+                                                        <motion.div
+                                                          animate={{
+                                                            y:
+                                                              con.userVote === 1
+                                                                ? -1
+                                                                : 0,
+                                                            scale:
+                                                              con.userVote === 1
+                                                                ? 1.1
+                                                                : 1,
+                                                          }}
+                                                          transition={{
+                                                            type: "spring",
+                                                            stiffness: 300,
+                                                          }}
+                                                        >
+                                                          <ArrowUp className="h-4 w-4" />{" "}
+                                                          {con.upvotes || 0}
+                                                        </motion.div>
+                                                      </Button>
+                                                    </motion.div>
 
-                                                  <motion.div
-                                                    whileHover={{ scale: 1.1 }}
-                                                    whileTap={{ scale: 0.95 }}
-                                                    transition={{
-                                                      type: "spring",
-                                                      stiffness: 400,
-                                                      damping: 20,
-                                                    }}
-                                                  >
-                                                    <Button
-                                                      variant="ghost"
-                                                      size="sm"
-                                                      onClick={() =>
-                                                        handleVote(
-                                                          "con",
-                                                          con.id,
-                                                          -1
-                                                        )
-                                                      }
-                                                      className={`h-10 w-10 rounded-full transition-all duration-300 group ${
-                                                        con.userVote === -1
+                                                    <motion.div
+                                                      whileHover={{ scale: 1.1 }}
+                                                      whileTap={{ scale: 0.95 }}
+                                                      transition={{
+                                                        type: "spring",
+                                                        stiffness: 400,
+                                                        damping: 20,
+                                                      }}
+                                                    >
+                                                      <Button
+                                                        variant="ghost"
+                                                        size="sm"
+                                                        onClick={() =>
+                                                          handleVote(
+                                                            "con",
+                                                            con.id,
+                                                            -1
+                                                          )
+                                                        }
+                                                        className={`h-10 w-10 rounded-full transition-all duration-300 group ${con.userVote === -1
                                                           ? "bg-red-500 hover:bg-red-600 text-white shadow-lg ring-2 ring-red-300"
                                                           : "hover:bg-red-100 dark:hover:bg-red-900/50 text-red-600"
-                                                      }`}
-                                                    >
-                                                      <motion.div
-                                                        animate={{
-                                                          y:
-                                                            con.userVote === -1
-                                                              ? 1
-                                                              : 0,
-                                                          scale:
-                                                            con.userVote === -1
-                                                              ? 1.1
-                                                              : 1,
-                                                        }}
-                                                        transition={{
-                                                          type: "spring",
-                                                          stiffness: 300,
-                                                        }}
+                                                          }`}
                                                       >
-                                                        <ArrowDown className="h-4 w-4" />{" "}
-                                                        {con.downvotes || 0}
-                                                      </motion.div>
-                                                    </Button>
-                                                  </motion.div>
+                                                        <motion.div
+                                                          animate={{
+                                                            y:
+                                                              con.userVote === -1
+                                                                ? 1
+                                                                : 0,
+                                                            scale:
+                                                              con.userVote === -1
+                                                                ? 1.1
+                                                                : 1,
+                                                          }}
+                                                          transition={{
+                                                            type: "spring",
+                                                            stiffness: 300,
+                                                          }}
+                                                        >
+                                                          <ArrowDown className="h-4 w-4" />{" "}
+                                                          {con.downvotes || 0}
+                                                        </motion.div>
+                                                      </Button>
+                                                    </motion.div>
+                                                  </div>
                                                 </div>
                                               </div>
-                                            </div>
-                                          </motion.div>
-                                        ))}
-
-                                        {/* Bottom Cons Pagination */}
-                                        {totalPages > 1 && (
-                                          <motion.div
-                                            className="flex justify-between items-center mt-4 p-3 bg-red-50/50 dark:bg-red-950/10 rounded-lg border border-red-200/30 dark:border-red-800/20"
-                                            initial={{
-                                              scale: 0.95,
-                                              opacity: 0,
-                                            }}
-                                            animate={{ scale: 1, opacity: 1 }}
-                                            transition={{
-                                              duration: 0.3,
-                                              delay: 0.2,
-                                            }}
-                                          >
-                                            <motion.div
-                                              whileHover={{ scale: 1.1 }}
-                                              whileTap={{ scale: 0.9 }}
-                                            >
-                                              <Button
-                                                variant="ghost"
-                                                size="sm"
-                                                onClick={() =>
-                                                  setConsPage(
-                                                    solution.id,
-                                                    Math.max(1, currentPage - 1)
-                                                  )
-                                                }
-                                                disabled={currentPage === 1}
-                                                className="h-10 w-10 p-0 rounded-full bg-white dark:bg-gray-800 shadow-md hover:shadow-lg transition-all duration-200 hover:scale-105 border border-red-200 dark:border-red-700 disabled:opacity-50 disabled:cursor-not-allowed"
-                                              >
-                                                <ChevronLeft className="h-5 w-5 text-red-600" />
-                                              </Button>
                                             </motion.div>
+                                          ))}
+
+                                          {/* Bottom Cons Pagination */}
+                                          {totalPages > 1 && (
                                             <motion.div
-                                              className="text-center"
-                                              initial={{ y: -5 }}
-                                              animate={{ y: 0 }}
+                                              className="flex justify-between items-center mt-4 p-3 bg-red-50/50 dark:bg-red-950/10 rounded-lg border border-red-200/30 dark:border-red-800/20"
+                                              initial={{
+                                                scale: 0.95,
+                                                opacity: 0,
+                                              }}
+                                              animate={{ scale: 1, opacity: 1 }}
                                               transition={{
                                                 duration: 0.3,
-                                                delay: 0.1,
+                                                delay: 0.2,
                                               }}
                                             >
-                                              <span className="text-sm font-medium text-red-700 dark:text-red-300">
-                                                Page {currentPage} of{" "}
-                                                {totalPages}
-                                              </span>
-                                              <p className="text-xs text-red-600/80 dark:text-red-400/80">
-                                                {solution.cons.length} Con
-                                                Arguments
-                                              </p>
-                                            </motion.div>
-                                            <motion.div
-                                              whileHover={{ scale: 1.1 }}
-                                              whileTap={{ scale: 0.9 }}
-                                            >
-                                              <Button
-                                                variant="ghost"
-                                                size="sm"
-                                                onClick={() =>
-                                                  setConsPage(
-                                                    solution.id,
-                                                    Math.min(
-                                                      totalPages,
-                                                      currentPage + 1
-                                                    )
-                                                  )
-                                                }
-                                                disabled={
-                                                  currentPage === totalPages
-                                                }
-                                                className="h-10 w-10 p-0 rounded-full bg-white dark:bg-gray-800 shadow-md hover:shadow-lg transition-all duration-200 hover:scale-105 border border-red-200 dark:border-red-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                                              <motion.div
+                                                whileHover={{ scale: 1.1 }}
+                                                whileTap={{ scale: 0.9 }}
                                               >
-                                                <ChevronRight className="h-5 w-5 text-red-600" />
-                                              </Button>
+                                                <Button
+                                                  variant="ghost"
+                                                  size="sm"
+                                                  onClick={() =>
+                                                    setConsPage(
+                                                      solution.id,
+                                                      Math.max(1, currentPage - 1)
+                                                    )
+                                                  }
+                                                  disabled={currentPage === 1}
+                                                  className="h-10 w-10 p-0 rounded-full bg-white dark:bg-gray-800 shadow-md hover:shadow-lg transition-all duration-200 hover:scale-105 border border-red-200 dark:border-red-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                                                >
+                                                  <ChevronLeft className="h-5 w-5 text-red-600" />
+                                                </Button>
+                                              </motion.div>
+                                              <motion.div
+                                                className="text-center"
+                                                initial={{ y: -5 }}
+                                                animate={{ y: 0 }}
+                                                transition={{
+                                                  duration: 0.3,
+                                                  delay: 0.1,
+                                                }}
+                                              >
+                                                <span className="text-sm font-medium text-red-700 dark:text-red-300">
+                                                  Page {currentPage} of{" "}
+                                                  {totalPages}
+                                                </span>
+                                                <p className="text-xs text-red-600/80 dark:text-red-400/80">
+                                                  {solution.cons.length} Con
+                                                  Arguments
+                                                </p>
+                                              </motion.div>
+                                              <motion.div
+                                                whileHover={{ scale: 1.1 }}
+                                                whileTap={{ scale: 0.9 }}
+                                              >
+                                                <Button
+                                                  variant="ghost"
+                                                  size="sm"
+                                                  onClick={() =>
+                                                    setConsPage(
+                                                      solution.id,
+                                                      Math.min(
+                                                        totalPages,
+                                                        currentPage + 1
+                                                      )
+                                                    )
+                                                  }
+                                                  disabled={
+                                                    currentPage === totalPages
+                                                  }
+                                                  className="h-10 w-10 p-0 rounded-full bg-white dark:bg-gray-800 shadow-md hover:shadow-lg transition-all duration-200 hover:scale-105 border border-red-200 dark:border-red-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                                                >
+                                                  <ChevronRight className="h-5 w-5 text-red-600" />
+                                                </Button>
+                                              </motion.div>
                                             </motion.div>
-                                          </motion.div>
-                                        )}
-                                      </>
-                                    );
-                                  })()}
-                                </motion.div>
-                              )}
-                            </div>
-                          </motion.div>
-                        </div>
-                      </motion.div>
-                    </CollapsibleContent>
-                  </Collapsible>
-                </motion.div>
-              ))}
-            </div>
-          )}
+                                          )}
+                                        </>
+                                      );
+                                    })()}
+                                  </motion.div>
+                                )}
+                              </div>
+                            </motion.div>
+                          </div>
+                        </motion.div>
+                      </CollapsibleContent>
+                    </Collapsible>
+                  </motion.div>
+                ))}
+              </div>
+            )}
+          </div>
         </div>
       </div>
 
-      {/* Floating Add Solution Button */}
-      {canAddSolution && (
-        <motion.div
-          className="fixed bottom-8 right-8"
-          initial={{ scale: 0, opacity: 0 }}
-          animate={{ scale: 1, opacity: 1 }}
-          transition={{
-            duration: 0.5,
-            delay: 0.8,
-            type: "spring",
-            stiffness: 200,
-          }}
-          whileHover={{ scale: 1.05 }}
-          whileTap={{ scale: 0.95 }}
-        >
-          <Button
-            onClick={() => setShowSolutionDialog(true)}
-            size="lg"
-            title="Add Solution"
-            className="rounded-full h-16 w-16 shadow-xl hover:shadow-2xl transition-all duration-300 bg-primary hover:bg-primary/90"
-          >
-            <PlusCircle className="h-8 w-8" />
-          </Button>
-        </motion.div>
-      )}
 
       {/* Add Solution Dialog */}
       <Dialog open={showSolutionDialog} onOpenChange={setShowSolutionDialog}>

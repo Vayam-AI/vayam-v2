@@ -6,6 +6,7 @@ import { passwordService } from "@/utils/password";
 import { generateName } from "@/utils/generateName";
 import { otpService } from "@/utils/otp";
 import { EmailNotifications } from "@/utils/email-templates";
+import { error } from "console";
 
 export async function POST(request: NextRequest) {
   try {
@@ -75,6 +76,8 @@ export async function POST(request: NextRequest) {
       })
       .returning();
 
+    console.log("The new user is: ", newUser)
+
     // Generate and send OTP for email verification
     const otp = otpService.generateOTP();
     await otpService.storeOTP(email, otp);
@@ -102,7 +105,8 @@ export async function POST(request: NextRequest) {
       { status: 201 }
     );
 
-  } catch {
+  } catch(error) {
+    console.log(error);
     return NextResponse.json(
       { error: "Internal server error" },
       { status: 500 }
