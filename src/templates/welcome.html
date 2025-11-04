@@ -1,112 +1,113 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Welcome to Vayam</title>
-    <style>
-        body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-            line-height: 1.6;
-            color: #000000;
-            max-width: 600px;
-            margin: 0 auto;
-            padding: 0;
-            background-color: #ffffff;
-        }
-        
-        .container {
-            background-color: #ffffff;
-            margin: 0;
-            padding: 0;
-        }
-        
-        .header {
-            text-align: center;
-            padding: 40px 20px 20px 20px;
-            border-bottom: 1px solid #000000;
-            margin-bottom: 30px;
-        }
-        
-        .header h1 {
-            margin: 0;
-            font-size: 24px;
-            font-weight: 600;
-            color: #000000;
-        }
-        
-        .header p {
-            margin: 8px 0 0 0;
-            font-size: 14px;
-            color: #666666;
-        }
-        
-        .content {
-            padding: 0 20px;
-        }
-        
-        .welcome-text {
-            font-size: 18px;
-            color: #000000;
-            margin-bottom: 20px;
-            font-weight: 500;
-        }
-        
-        .content p {
-            margin: 16px 0;
-            color: #000000;
-        }
-        
-        .cta-button {
-            display: inline-block;
-            background-color: #000000;
-            color: #ffffff;
-            text-decoration: none;
-            padding: 16px 32px;
-            border-radius: 4px;
-            font-size: 16px;
-            font-weight: 600;
-            text-align: center;
-            margin: 30px auto;
-            display: block;
-            width: fit-content;
-            border: 1px solid #000000;
-        }
-        
-        .footer {
-            margin-top: 40px;
-            padding: 20px;
-            border-top: 1px solid #000000;
-            font-size: 12px;
-            color: #666666;
-            text-align: center;
-        }
-    </style>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Welcome to Vayam</title>
+  <style>
+    body {
+      font-family: Arial, Helvetica, sans-serif;
+      background-color: #f9f9f9;
+      margin: 0;
+      padding: 0;
+      color: #222222;
+    }
+    .container {
+      max-width: 600px;
+      margin: 40px auto;
+      background-color: #ffffff;
+      border-radius: 8px;
+      overflow: hidden;
+      box-shadow: 0 0 10px rgba(0,0,0,0.05);
+      padding: 40px;
+    }
+    h1 {
+      font-size: 28px;
+      color: #000000;
+      text-align: center;
+      margin-bottom: 10px;
+    }
+    .subtitle {
+      text-align: center;
+      color: #555555;
+      font-size: 16px;
+      margin-bottom: 30px;
+    }
+    p {
+      line-height: 1.6;
+      margin-bottom: 16px;
+      font-size: 15px;
+      color: #333333;
+    }
+    ul {
+      padding-left: 20px;
+      margin-bottom: 20px;
+    }
+    li {
+      margin-bottom: 8px;
+    }
+    .cta-button {
+      display: inline-block;
+      background-color: #000000;
+      color: #ffffff !important;
+      text-decoration: none;
+      padding: 14px 28px;
+      border-radius: 4px;
+      font-size: 16px;
+      font-weight: 600;
+      text-align: center;
+      margin: 30px auto;
+      border: 1px solid #000000;
+    }
+    .cta-container {
+      text-align: center;
+    }
+    .footer {
+      margin-top: 40px;
+      padding-top: 20px;
+      border-top: 1px solid #dddddd;
+      font-size: 12px;
+      color: #777777;
+      text-align: center;
+    }
+  </style>
 </head>
 <body>
-    <div class="container">
-        <div class="header">
-            <h1>Welcome to Vayam</h1>
-            <p>Your journey to collaborative problem-solving begins here</p>
-        </div>
-        
-        <div class="content">
-            <div class="welcome-text">
-                Hello,
-            </div>
-            
-            <p>Welcome to Vayam Platform! We're excited to have you join our community of experts and problem-solvers.</p>
-            
-            <p>Start exploring questions, contributing solutions, and making a difference in your field of expertise.</p>
-            
-            <a href="{{platformUrl}}" class="cta-button" style="color: #ffffff !important; text-decoration: none !important;">
-                Explore the Platform
-            </a>
-        </div>
-        
-        <div class="footer">
-            <p>This email was sent from Vayam Platform</p>
-        </div>
+  <div class="container">
+    <h1>Welcome to Vayam!</h1>
+    <p class="subtitle">Together, we are smarter.</p>
+
+    <p>Dear <strong>{{name}}</strong>,</p>
+    
+    <p>Welcome to <strong>Vayam!</strong> We're excited to have you as part of a movement that celebrates the power of collective intelligence where every perspective, idea, and experience matters.</p>
+
+    <p>At Vayam, we believe that real progress happens not in isolation, but together. Here, every person every “we” has the power to build solutions, challenge assumptions, and shape decisions that impact our shared future.</p>
+
+    <p>Our mission is to harness the wisdom of the crowd, connect diverse viewpoints, and create actionable insights that lead to meaningful change.</p>
+
+    <h3>How Vayam Works:</h3>
+    <ul>
+      <li>Explore important questions hosted by our team.</li>
+      <li>Review expert provided solutions and add your own pros, cons, or supporting arguments.</li>
+      <li>Vote on the most helpful insights, surfacing the best ideas for all to see.</li>
+      <li>Be part of a transparent, inclusive process where every voice counts.</li>
+    </ul>
+
+    <!-- <p><em>(By Tuesday, add GIF or tutorial of how to use Vayam.)</em></p> -->
+
+    <h3>Why Your Voice Matters:</h3>
+    <p>Each one of us holds a unique fragment of truth—a story, a lesson, a vision shaped by our own journey. When these fragments come together, we create actual intelligence: reasoned, democratic, and grounded in lived realities.</p>
+
+    <p>By contributing to Vayam, you're not just adding to a conversation — you're shaping decisions for organizations, leaders, educators, and citizens across the nation.</p>
+
+    <div class="cta-container">
+      <a href="{{platformUrl}}" class="cta-button">Get Started</a>
     </div>
+
+    <div class="footer">
+      <p>This email was sent from the Vayam Platform.</p>
+      <p>© 2025 Vayam. All rights reserved.</p>
+    </div>
+  </div>
 </body>
 </html>

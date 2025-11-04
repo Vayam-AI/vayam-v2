@@ -3,15 +3,19 @@ import { db } from "@/db/drizzle";
 import { users } from "@/db/schema";
 import { auth } from "@/lib/auth-options";
 import { eq } from "drizzle-orm";
+import { log } from "@/lib/logger";
 
 export async function GET() {
   try {
     const session = await auth();
+    
     if (!session || !session.user?.id) {
+      log('warn', 'Unauthorized mobile status check', undefined, false);
       return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
     }
 
-    const uid = Number(session.user.id);
+    const userId = session.user.id;
+    const uid = Number(userId);
     const user = await db
       .select({
         mobile: users.mobile,
@@ -32,6 +36,8 @@ export async function GET() {
     // BUT if mobile is "SKIPPED", they chose to skip so don't require verification
     const needsMobileVerification = !userData.isMobileVerified && !userData.hasSkippedMobileVerification;
 
+    log('info', 'Mobile status checked', userId, true, { needsMobileVerification });
+
     return NextResponse.json({
       needsMobileVerification,
       hasMobile: !!userData.mobile && userData.mobile !== "SKIPPED",
@@ -40,7 +46,9 @@ export async function GET() {
       isSkipped: userData.mobile === "SKIPPED",
     });
   } catch (error) {
-    console.error("Check mobile status error:", error);
+    log('error', 'Check mobile status error', undefined, false, { 
+      error: error instanceof Error ? error.message : 'Unknown error' 
+    });
     return NextResponse.json(
       { error: "Internal server error" },
       { status: 500 }

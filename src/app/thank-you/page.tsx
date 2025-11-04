@@ -1,29 +1,18 @@
-"use client"
+"use client";
 
-import { useEffect, useState } from "react"
-import { useRouter } from "next/navigation"
-import { motion, Variants } from "framer-motion"
-import { Button } from "@/components/ui/button"
-import { ArrowRight, CheckCircle2 } from "lucide-react"
+import { useRouter, useSearchParams } from "next/navigation";
+import { motion, type Variants } from "framer-motion";
+import { X, Share2, ArrowRight } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { toast } from "sonner";
+import { FeedbackForm } from "@/components/feedback-form";
+import { Suspense } from "react";
 
-export default function ThankYouPage() {
-  const router = useRouter()
-  const [timeLeft, setTimeLeft] = useState(10)
-
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      router.push("/dashboard")
-    }, 10000)
-
-    const interval = setInterval(() => {
-      setTimeLeft((prev) => (prev > 0 ? prev - 1 : 0))
-    }, 1000)
-
-    return () => {
-      clearTimeout(timer)
-      clearInterval(interval)
-    }
-  }, [router])
+function ThankYouContent() {
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const questionLink = searchParams.get("link");
+  const userName = searchParams.get("name");
 
   const containerVariants: Variants = {
     hidden: { opacity: 0 },
@@ -45,82 +34,104 @@ export default function ThankYouPage() {
     },
   }
 
+  const handleCopyLink = async () => {
+    const linkToCopy = questionLink as string
+    try {
+      await navigator.clipboard.writeText(linkToCopy)
+      toast.success("Link Copied to Clipboard!", { duration: 2500 })
+    } catch (err) {
+      console.error("Failed to copy link:", err)
+      toast.error("Failed to copy link", { duration: 2500 })
+    }
+  }
+
   return (
-    <div className="min-h-screen bg-white text-black flex items-center justify-center p-6">
-      <motion.div variants={containerVariants} initial="hidden" animate="visible" className="w-full max-w-2xl">
-        {/* Icon */}
-        <motion.div variants={itemVariants} className="flex justify-center mb-8">
+    <div className="min-h-screen bg-white text-black flex items-center justify-center p-4 sm:p-6 relative overflow-hidden">
+      {/* Top Right Controls */}
+      <div className="absolute top-4 right-4 flex items-center gap-1 border border-black/15 rounded-full bg-white/60 backdrop-blur-md p-1 sm:top-6 sm:right-6">
+
+        {/* X Button */}
+        <button
+          onClick={() => router.push("/dashboard")}
+          className="p-2 rounded-full hover:bg-black/10 transition-colors"
+          aria-label="Close"
+        >
+          <X className="h-5 w-5 sm:h-6 sm:w-6 text-black" />
+        </button>
+      </div>
+
+      <motion.div
+        variants={containerVariants}
+        initial="hidden"
+        animate="visible"
+        className="w-full max-w-2xl text-center space-y-6 sm:space-y-8 px-2"
+      >
+        {/* Check Icon */}
+        <motion.div variants={itemVariants} className="flex justify-center mb-6 sm:mb-8">
           <motion.div
             initial={{ scale: 0, rotate: -180 }}
             animate={{ scale: 1, rotate: 0 }}
             transition={{ duration: 0.7, ease: "easeOut" }}
           >
             <div className="relative">
-              <div className="absolute inset-0 bg-black rounded-full opacity-5 blur-xl" />
-              <CheckCircle2 className="h-24 w-24 text-black stroke-[1.5]" />
+              <div className="absolute inset-0 bg-black rounded-full opacity-10 blur-xl" />
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                className="h-20 w-20 sm:h-24 sm:w-24 text-black stroke-[1.5]"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+              >
+                <path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
             </div>
           </motion.div>
         </motion.div>
 
-        {/* Main Content */}
-        <motion.div variants={itemVariants} className="text-center space-y-6 mb-12">
-          <h1 className="text-5xl font-bold tracking-tight">Thank You</h1>
-          <div className="h-1 w-16 bg-black mx-auto" />
-          <p className="text-lg text-gray-600 leading-relaxed max-w-lg mx-auto font-light">
-            Your participation and valuable insights have been recorded. We truly appreciate your time and contribution
-            to making this community stronger.
+        {/* Thank You Message */}
+        <motion.div variants={itemVariants} className="space-y-3 sm:space-y-4">
+          <h1 className="text-3xl sm:text-5xl font-bold tracking-tight">
+            Thank You, {userName}
+          </h1>
+          <div className="h-1 w-12 sm:w-16 bg-black mx-auto" />
+          <p className="text-base sm:text-lg text-gray-600 leading-relaxed max-w-md sm:max-w-lg mx-auto font-light">
+            Your voice matters and has been recorded.
+            <br className="hidden sm:block" />
+            We appreciate your contribution to building a thoughtful community.
           </p>
         </motion.div>
 
-        {/* Impact Section */}
-        <motion.div variants={itemVariants} className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-12">
-          {[
-            { number: "01", label: "Voice Heard" },
-            { number: "02", label: "Impact Made" },
-            { number: "03", label: "Community Built" },
-          ].map((item, index) => (
-            <motion.div
-              key={index}
-              whileHover={{ y: -4 }}
-              className="border border-black/10 rounded-lg p-6 text-center hover:border-black/30 transition-colors"
-            >
-              <div className="text-3xl font-bold text-black/40 mb-2">{item.number}</div>
-              <p className="text-sm font-medium text-gray-700">{item.label}</p>
-            </motion.div>
-          ))}
-        </motion.div>
-
-        {/* Message Box */}
+        {/* Buttons */}
         <motion.div
           variants={itemVariants}
-          className="bg-black/2 border border-black/10 rounded-lg p-8 mb-12 backdrop-blur-sm"
+          className="flex flex-col sm:flex-row space-y-3 sm:space-y-0 sm:space-x-3 justify-center mt-8"
         >
-          <p className="text-center text-sm text-gray-700 leading-relaxed">
-            Every response matters. Your feedback helps us understand what works, what doesn&apos;t, and how we can continue
-            to improve. Thank you for being part of this journey.
-          </p>
-        </motion.div>
-
-        {/* CTA Section */}
-        <motion.div variants={itemVariants} className="space-y-4">
+          <FeedbackForm />
+          <Button
+            onClick={handleCopyLink}
+            className={`bg-black text-white hover:bg-black/90 px-6 h-11 sm:h-12 rounded-lg text-sm sm:text-base font-medium flex items-center justify-center
+              }`}
+          >
+            <Share2 size={18} />
+            Invite Friends to Ideate
+          </Button>
           <Button
             onClick={() => router.push("/dashboard")}
-            className="w-full bg-black text-white hover:bg-black/90 h-12 text-base font-medium rounded-lg transition-all"
+            className="bg-black text-white hover:bg-black/90 px-6 h-11 sm:h-12 rounded-lg text-sm sm:text-base font-medium flex items-center justify-center"
           >
-            Return to Dashboard
-            <ArrowRight className="h-4 w-4 ml-2" />
+            Explore More Questions
+            <ArrowRight className="ml-2 h-4 w-4" />
           </Button>
-
-          <motion.div
-            animate={{ opacity: [0.5, 1, 0.5] }}
-            transition={{ duration: 2, repeat: Number.POSITIVE_INFINITY }}
-            className="text-center text-xs text-gray-500 font-medium"
-          >
-            Redirecting in {timeLeft}s
-          </motion.div>
         </motion.div>
-
       </motion.div>
     </div>
-  )
+  );
+}
+
+export default function ThankYouPage() {
+  return (
+    <Suspense fallback={<div className="min-h-screen bg-white flex items-center justify-center">Loading...</div>}>
+      <ThankYouContent />
+    </Suspense>
+  );
 }

@@ -3,14 +3,16 @@ import { db } from "@/db/drizzle";
 import { users } from "@/db/schema";
 import { eq } from "drizzle-orm";
 import { passwordService } from "@/utils/password";
-import { generateName } from "@/utils/generateName";
 import { otpService } from "@/utils/otp";
 import { EmailNotifications } from "@/utils/email-templates";
-import { error } from "console";
+import { log } from "@/lib/logger";
 
 export async function POST(request: NextRequest) {
   try {
-    const { email, password } = await request.json();
+    const { email, password, username } = await request.json();
+    
+    // Log signup attempt
+    log('info', 'Signup attempt', undefined, false, { email });
 
     // Validate input
     if (!email || !password) {
@@ -68,7 +70,7 @@ export async function POST(request: NextRequest) {
       .insert(users)
       .values({
         email,
-        username: generateName(),
+        username,
         pwhash: hashedPassword,
         provider: "email",
         isEmailVerified: false, // Will be verified via OTP
@@ -76,7 +78,6 @@ export async function POST(request: NextRequest) {
       })
       .returning();
 
-    console.log("The new user is: ", newUser)
 
     // Generate and send OTP for email verification
     const otp = otpService.generateOTP();
@@ -90,12 +91,18 @@ export async function POST(request: NextRequest) {
       await db
         .delete(users)
         .where(eq(users.uid, newUser[0].uid));
-        
+      
+      // Log email sending failure
+      log('error', 'Failed to send verification email', undefined, false, { email });
+      
       return NextResponse.json(
         { error: "Failed to send verification email. Please try again." },
         { status: 500 }
       );
     }
+
+    // Log successful signup
+    log('info', 'User signup successful', newUser[0].uid.toString(), false, { email });
 
     return NextResponse.json(
       { 
@@ -105,8 +112,12 @@ export async function POST(request: NextRequest) {
       { status: 201 }
     );
 
-  } catch(error) {
-    console.log(error);
+  } catch (error) {
+    // Log error
+    log('error', 'Signup error', undefined, false, { 
+      error: error instanceof Error ? error.message : 'Unknown error' 
+    });
+    
     return NextResponse.json(
       { error: "Internal server error" },
       { status: 500 }

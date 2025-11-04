@@ -1,7 +1,7 @@
 // Type definitions for the Vayam platform
 export interface User {
   uid: number;
-  username?: string;
+  username?: string | null;
   email: string;
   pwhash?: string;
   provider: string;
@@ -22,8 +22,24 @@ export interface Question {
   isPublic: boolean;
   logos: string[];
   infoImages: string[];
-  createdAt: Date;
-  updatedAt: Date;
+  createdAt: string;
+  updatedAt: string;
+  ownerEmail: string;
+  ownerUsername: string | null;
+}
+
+export interface ProCon {
+  id: number;
+  solutionId: number;
+  userId: number;
+  content: string;
+  createdAt: string;
+  updatedAt: string;
+  user: Pick<User, "uid" | "username" | "email">;
+  upvotes: number;
+  downvotes: number;
+  voteCount: number;
+  userVote: number | null; // 1 for upvote, -1 for downvote, null for no vote
 }
 
 export interface Solution {
@@ -33,8 +49,13 @@ export interface Solution {
   title: string;
   content: string;
   isActive: boolean;
-  createdAt: Date;
-  updatedAt: Date;
+  createdAt: string;
+  updatedAt: string;
+  user: Pick<User, "uid" | "username" | "email">;
+  pros: ProCon[];
+  cons: ProCon[];
+  voteCount: number;
+  userVote: number | null;
 }
 
 export interface Pro {
@@ -74,6 +95,37 @@ export interface Participant {
   participationType: string; // "solution", "pro", "con", "vote"
   createdAt: Date;
   updatedAt: Date;
+}
+
+// API Response Types for processing server data
+export interface ApiSolutionResponse {
+  id: number;
+  questionId: number;
+  userId: number;
+  title: string;
+  content: string;
+  isActive: boolean;
+  createdAt: string;
+  updatedAt: string;
+  user: Pick<User, "uid" | "username" | "email">;
+  pros: ApiProConResponse[];
+  cons: ApiProConResponse[];
+  voteCount: string | number;
+  userVote: string | number | null;
+}
+
+export interface ApiProConResponse {
+  id: number;
+  solutionId: number;
+  userId: number;
+  content: string;
+  createdAt: string;
+  updatedAt: string;
+  user: Pick<User, "uid" | "username" | "email">;
+  upvotes: string | number;
+  downvotes: string | number;
+  voteCount: string | number;
+  userVote: string | number | null;
 }
 
 // Request/Response types for API endpoints
@@ -118,13 +170,22 @@ export interface QuestionWithDetails extends Question {
   totalParticipants: number;
 }
 
-export interface SolutionWithDetails extends Solution {
+export interface SolutionWithDetails {
+  id: number;
+  questionId: number;
+  userId: number;
+  title: string;
+  content: string;
+  isActive: boolean;
+  createdAt: string;
+  updatedAt: string;
   user: Pick<User, "uid" | "username" | "email">;
-  pros: Pro[];
-  cons: Con[];
+  pros: ProCon[];
+  cons: ProCon[];
   userVote?: Vote;
   totalUpvotes: number;
   totalDownvotes: number;
+  voteCount: number;
 }
 
 export interface ProConWithVotes {

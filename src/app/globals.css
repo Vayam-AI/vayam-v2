@@ -1,9 +1,51 @@
 @import "https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans&family=Poppins:ital,wght@0,100;0,200;0,300;0,400;0,500;0,600;0,700;0,800;0,900;1,100;1,200;1,300;1,400;1,500;1,600;1,700;1,800;1,900&display=swap";
+@import url('https://fonts.googleapis.com/css2?family=Noto+Serif+Georgian:wght@100..900&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Momo+Trust+Sans:wght@200..800&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Montserrat:ital,wght@0,100..900;1,100..900&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Roboto+Slab:wght@100..900&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Nunito+Sans:ital,opsz,wght@0,6..12,200..1000;1,6..12,200..1000&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Noto+Serif:ital,wght@0,100..900;1,100..900&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=PT+Serif:ital,wght@0,400;0,700;1,400;1,700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Birthstone&display=swap');
+
+
 
 @import "tailwindcss";
 @import "tw-animate-css";
 
 @custom-variant dark (&:is(.dark *));
+
+.font-noto-serif-georgian {
+  font-family: var(--font-noto-serif-georgian) !important;
+}
+
+.font-momo-trust-sans {
+  font-family: var(--font-momo-trust-sans) !important;
+}
+
+.font-montserrat {
+  font-family: var(--font-montserrat) !important;
+}
+
+.font-roboto-slab {
+  font-family: var(--font-roboto-slab) !important;
+}
+
+.font-nunito-sans {
+  font-family: var(--font-nunito-sans) !important;
+}
+
+.font-noto-serif {
+  font-family: var(--font-noto-serif) !important;
+}
+
+.font-pt-serif {
+  font-family: var(--font-pt-serif) !important;
+}
+
+.font-birthstone {
+  font-family: var(--font-birthstone) !important;
+}
 
 :root {
   --background: #ffffff;
@@ -61,6 +103,13 @@
   --font-serif: ui-serif, Georgia, Cambria, "Times New Roman", Times, serif;
   --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas,
     "Liberation Mono", "Courier New", monospace;
+  --font-noto-serif-georgian: "Noto Serif Georgian";
+  --font-momo-trust-sans: "Momo Trust Sans";
+  --font-roboto-slab: "Roboto Slab";
+  --font-nunito-sans: "Nunito Sans", sans-serif;
+  --font-noto-serif:"Noto Serif", serif;
+  --font-pt-serif: "PT Serif";
+  --font-birthstone: "Birthstone", cursive;
   --radius: 0.625rem;
   --shadow-x: 0;
   --shadow-y: 1px;
@@ -140,6 +189,8 @@
   --font-serif: ui-serif, Georgia, Cambria, "Times New Roman", Times, serif;
   --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas,
     "Liberation Mono", "Courier New", monospace;
+  --font-montserrat: "Montserrat";
+  --font-roboto-slab: "Roboto Slab";
   --radius: 0.625rem;
   --shadow-x: 0;
   --shadow-y: 1px;

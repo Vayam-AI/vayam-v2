@@ -1,7 +1,14 @@
-import nodemailer from "nodemailer";
-import dotenv from "dotenv";
+import sgMail from '@sendgrid/mail';
+import dotenv from "dotenv"
 
-dotenv.config();
+dotenv.config()
+
+// Initialize SendGrid
+if (!process.env.SENDGRID_API_KEY) {
+  throw new Error('SENDGRID_API_KEY environment variable is required');
+}
+
+sgMail.setApiKey(process.env.SENDGRID_API_KEY);
 
 export const sendEmail = async (
   recipientEmail: string,
@@ -11,39 +18,48 @@ export const sendEmail = async (
 ) => {
   try {
     // Validate environment variables
-    if (!process.env.SENDER_EMAIL || !process.env.SENDER_PASS) {
-      throw new Error("Email configuration missing: SENDER_EMAIL or SENDER_PASS not set");
+    if (!process.env.SENDER_EMAIL) {
+      throw new Error("SENDER_EMAIL not set");
     }
 
-    const transporter = nodemailer.createTransport({
-      service: "gmail",
-      auth: {
-        user: process.env.SENDER_EMAIL,
-        pass: process.env.SENDER_PASS,
-      },
-    });
-
-    // Verify transporter configuration
-    await transporter.verify();
-
-    const mailOptions = {
-      from: process.env.SENDER_EMAIL,
+    const msg = {
       to: recipientEmail,
+      from: process.env.SENDER_EMAIL, // Must be verified in SendGrid
       subject: subject,
       ...(isHtml ? { html: content } : { text: content }),
     };
 
-    const info = await transporter.sendMail(mailOptions);
+    const [response] = await sgMail.send(msg);
+   
+    return { 
+      success: true, 
+      messageId: response.headers['x-message-id'],
+      statusCode: response.statusCode
+    };
+  } catch (error: unknown) {
+    // Enhanced error handling for SendGrid
+    const err = error as { response?: { body?: { errors?: unknown[] } } };
     
-    return { success: true, messageId: info.messageId };
-  } catch (error) {
-    // Email error logged in development only
     if (process.env.NODE_ENV === 'development') {
-      console.error("Error sending email:", error);
+      console.error("SendGrid Error:", error);
+      
+      if (err.response) {
+        console.error("SendGrid Response Body:", err.response.body);
+      }
     }
+
+    // User-friendly error messages
+    let errorMessage = "Failed to send email";
+    if (err.response?.body?.errors) {
+      const errors = err.response.body.errors as Array<{ message?: string }>;
+      errorMessage = errors[0]?.message || errorMessage;
+    } else if (error instanceof Error) {
+      errorMessage = error.message;
+    }
+
     return { 
       success: false, 
-      error: error instanceof Error ? error.message : "Unknown email error"
+      error: errorMessage
     };
   }
-};
+}

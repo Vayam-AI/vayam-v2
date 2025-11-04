@@ -2,37 +2,46 @@ import { z } from "zod";
 
 // Question validation schemas
 export const createQuestionSchema = z.object({
-  title: z.string().min(10, "Title must be at least 10 characters").max(200, "Title too long"),
-  description: z.string().min(50, "Description must be at least 50 characters").max(2000, "Description too long"),
-  tags: z.array(z.string().min(1).max(50)).max(10, "Too many tags").optional(),
-  allowedEmails: z.array(z.string().email("Invalid email format")).max(100, "Too many allowed emails").optional(),
+  title: z.string().min(10, "Title must be at least 10 characters").max(200, "Title must not exceed 200 characters"),
+  description: z.string().min(20, "Description must be at least 20 characters").max(1000, "Description must not exceed 1000 characters"),
+  tags: z.array(z.string().min(1).max(50, "Tag too long")).max(10, "Maximum 10 tags allowed").optional(),
+  allowedEmails: z.array(z.string().email("Invalid email format")).max(50, "Maximum 50 emails allowed").optional(),
   isActive: z.boolean().optional(),
 });
 
 export const updateQuestionSchema = createQuestionSchema.partial();
 
+// Invite SME validation schema
+export const inviteSmeSchema = z.object({
+  emails: z
+    .array(z.string().email("Invalid email"))
+    .min(1, "At least one email is required")
+    .max(20, "You can invite up to 20 SMEs"),
+});
+
+
 // Solution validation schemas
 export const createSolutionSchema = z.object({
   questionId: z.number().int().positive("Invalid question ID"),
   title: z.string().min(5, "Title must be at least 5 characters").max(150, "Title too long"),
-  content: z.string().min(100, "Solution must be at least 100 characters").max(5000, "Solution too long"),
+  content: z.string().min(50, "Solution must be at least 50 characters").max(500, "Solution must not exceed 500 characters (~80 to 120 words)"),
 });
 
 export const updateSolutionSchema = z.object({
   title: z.string().min(5, "Title must be at least 5 characters").max(150, "Title too long").optional(),
-  content: z.string().min(100, "Solution must be at least 100 characters").max(5000, "Solution too long").optional(),
+  content: z.string().min(50, "Solution must be at least 50 characters").max(500, "Solution must not exceed 500 characters (~80 to 120 words)").optional(),
 });
 
 // Pro validation schemas
 export const createProSchema = z.object({
   solutionId: z.number().int().positive("Invalid solution ID"),
-  content: z.string().min(10, "Content must be at least 10 characters").max(500, "Content too long"),
+  content: z.string().min(10, "Content must be at least 10 characters").max(200, "Pros must not exceed 200 characters (~30 to 50 words)"),
 });
 
 // Con validation schemas
 export const createConSchema = z.object({
   solutionId: z.number().int().positive("Invalid solution ID"),
-  content: z.string().min(10, "Content must be at least 10 characters").max(500, "Content too long"),
+  content: z.string().min(10, "Content must be at least 10 characters").max(200, "Cons must not exceed 200 characters (~30 to 50 words)"),
 });
 
 // Vote validation schemas
@@ -71,9 +80,11 @@ export const prosConsQuerySchema = paginationSchema.extend({
   userId: z.coerce.number().int().positive().optional(),
 });
 
+
 // Type exports for the validated schemas
 export type CreateQuestionData = z.infer<typeof createQuestionSchema>;
 export type UpdateQuestionData = z.infer<typeof updateQuestionSchema>;
+export type InviteSmeData = z.infer<typeof inviteSmeSchema>;
 export type CreateSolutionData = z.infer<typeof createSolutionSchema>;
 export type UpdateSolutionData = z.infer<typeof updateSolutionSchema>;
 export type CreateProData = z.infer<typeof createProSchema>;

@@ -211,8 +211,8 @@ function SignUpPageContent() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-background via-background to-muted/20 p-4">
-      <Card className="w-full max-w-md shadow-lg border-0 bg-card/95 backdrop-blur supports-[backdrop-filter]:bg-card/60">
+    <div className="min-h-screen flex items-center justify-center from-background via-background to-muted/20 p-4">
+      <Card className="w-full max-w-md shadow-lg border-0 bg-card/95 backdrop-blur ">
         <CardHeader className="space-y-2 text-center">
           <div className="flex items-center justify-center space-x-2">
             {currentStep === "verify" && (

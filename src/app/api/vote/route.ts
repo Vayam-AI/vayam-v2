@@ -4,6 +4,7 @@ import { db } from "@/db/drizzle";
 import { votes, users, solutions, pros, cons, participants, questions } from "@/db/schema";
 import { eq, and, isNull } from "drizzle-orm";
 import { z } from "zod";
+import { log } from "@/lib/logger";
 
 const voteSchema = z.object({
   type: z.enum(["solution", "pro", "con"]),
@@ -13,7 +14,7 @@ const voteSchema = z.object({
   }).transform(val => val as 1 | -1),
 });
 
-const sanitizeId = (id: any) => {
+const sanitizeId = (id: unknown): number | null => {
   if (typeof id === 'number' && id > 0) return id;
   return null;
 };
@@ -23,6 +24,7 @@ export async function POST(request: NextRequest) {
     const session = await auth();
     
     if (!session?.user?.email) {
+      log('warn', 'Unauthorized vote attempt', undefined, false);
       return NextResponse.json(
         { success: false, message: "Unauthorized" },
         { status: 401 }
@@ -30,9 +32,7 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
-    console.log("Request body:", body);
     const validatedData = voteSchema.parse(body);
-    console.log("Validated data:", validatedData);
 
     // Get current user
     const currentUser = await db
@@ -79,7 +79,6 @@ export async function POST(request: NextRequest) {
       questionId = solution[0].questionId;
       solutionId = validatedData.id;
     } else if (validatedData.type === "pro") {
-      // console.log("Solution Id for pro vote:", validatedData.solutionId);
       const pro = await db
         .select({
           id: pros.id,
@@ -156,7 +155,6 @@ export async function POST(request: NextRequest) {
       .limit(1);
 
     if (existingVote.length > 0) {
-      console.log("The vote data is: ", validatedData)
       // Update existing vote - only update the vote value and timestamp
       await db
         .update(votes)
@@ -177,8 +175,6 @@ export async function POST(request: NextRequest) {
         createdAt: new Date(),
         updatedAt: new Date(),
       };
-      console.log("Vote Data is: ", voteData)
-
       await db.insert(votes).values(voteData);
 
       // Add participation record
@@ -236,6 +232,12 @@ export async function POST(request: NextRequest) {
       voteCount = conVotes.reduce((sum, vote) => sum + vote.vote, 0);
     }
 
+    log('info', 'Vote recorded successfully', userId.toString(), true, {
+      type: validatedData.type,
+      itemId: validatedData.id,
+      vote: validatedData.vote
+    });
+
     return NextResponse.json({
       success: true,
       message: "Vote recorded successfully",
@@ -246,6 +248,7 @@ export async function POST(request: NextRequest) {
 
   } catch (error) {
     if (error instanceof z.ZodError) {
+      log('warn', 'Vote validation error', undefined, false);
       return NextResponse.json(
         {
           success: false,
@@ -254,7 +257,9 @@ export async function POST(request: NextRequest) {
         { status: 400 }
       );
     }
-    console.error("Error processing vote:", error);
+    log('error', 'Vote processing error', undefined, false, {
+      error: error instanceof Error ? error.message : 'Unknown error'
+    });
     return NextResponse.json(
       { success: false, message: "Internal server error" },
       { status: 500 }

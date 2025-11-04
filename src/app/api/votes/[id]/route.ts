@@ -3,6 +3,7 @@ import { auth } from "@/lib/auth-options";
 import { db } from "@/db/drizzle";
 import { votes } from "@/db/schema";
 import { eq, and, isNull } from "drizzle-orm";
+import { log } from "@/lib/logger";
 
 export async function GET(
   request: NextRequest,
@@ -67,6 +68,8 @@ export async function GET(
       voteCount = conVotes.reduce((sum, vote) => sum + vote.vote, 0);
     }
 
+    log('info', 'Vote count fetched', session.user.id, true, { type, itemId, voteCount });
+
     return NextResponse.json({
       success: true,
       data: {
@@ -75,7 +78,9 @@ export async function GET(
     });
 
   } catch (error) {
-    console.error("Error fetching votes:", error);
+    log('error', 'Vote fetch error', undefined, false, {
+      error: error instanceof Error ? error.message : 'Unknown error'
+    });
     return NextResponse.json(
       { success: false, message: "Internal server error" },
       { status: 500 }

@@ -4,9 +4,9 @@ import NextAuth, { NextAuthConfig } from "next-auth";
 import { db } from "@/db/drizzle";
 import { users } from "@/db/schema";
 import { eq } from "drizzle-orm";
-import { generateName } from "@/utils/generateName";
 import { passwordService } from "@/utils/password";
 import { EmailNotifications } from "@/utils/email-templates";
+import { log } from "@/lib/logger";
 
 export const authOptions: NextAuthConfig = {
   secret: process.env.NEXTAUTH_SECRET || "development-secret-key",
@@ -43,6 +43,7 @@ export const authOptions: NextAuthConfig = {
             .limit(1);
 
           if (!user[0]) {
+            log('warn', 'Login failed - user not found', undefined, false, { email: credentials.email });
             throw new Error("Invalid email or password");
           }
 
@@ -50,6 +51,9 @@ export const authOptions: NextAuthConfig = {
 
           // Check if this is a Google account (no password hash)
           if (foundUser.provider === 'google' || !foundUser.pwhash) {
+            log('warn', 'Login failed - Google account used with credentials', undefined, false, { 
+              email: credentials.email 
+            });
             throw new Error("This email is associated with a Google account. Please sign in with Google instead.");
           }
 
@@ -60,13 +64,25 @@ export const authOptions: NextAuthConfig = {
           );
 
           if (!isValidPassword) {
+            log('warn', 'Login failed - invalid password', foundUser.uid.toString(), false, { 
+              email: credentials.email 
+            });
             throw new Error("Invalid email or password");
           }
 
           // Check if email is verified
           if (!foundUser.isEmailVerified) {
+            log('warn', 'Login failed - email not verified', foundUser.uid.toString(), false, { 
+              email: credentials.email 
+            });
             throw new Error("Please verify your email before signing in");
           }
+
+          // Log successful login
+          log('info', 'User login successful', foundUser.uid.toString(), true, { 
+            email: credentials.email,
+            provider: 'credentials'
+          });
 
           // Return user object for NextAuth
           return {
@@ -121,24 +137,31 @@ export const authOptions: NextAuthConfig = {
             .limit(1);
 
           let dbUser = existingUser[0];
-
+          const userNameFromEmail = user.email.split("@")[0];
           if (!dbUser) {
             // Create new user for Google OAuth
             const inserted = await db
               .insert(users)
               .values({
                 email: user.email,
-                username: generateName(),
+                username: userNameFromEmail,
                 provider: 'google',
                 isEmailVerified: true, // Google accounts are pre-verified
                 pwhash: null, // No password for OAuth users
-              })
-              .returning();
+            })
+            .returning();
             dbUser = inserted[0];
+
+            // Log new Google user creation
+            log('info', 'New Google user created', dbUser.uid.toString(), true, { 
+              email: user.email,
+              provider: 'google'
+            });
 
             // Send welcome email to new Google OAuth user
             try {
               await EmailNotifications.sendWelcomeEmail(user.email, {
+                name: userNameFromEmail,
                 platformUrl: process.env.NEXTAUTH_URL || 'http://localhost:3000',
                 dashboardUrl: `${process.env.NEXTAUTH_URL || 'http://localhost:3000'}/dashboard`
               });
@@ -147,7 +170,16 @@ export const authOptions: NextAuthConfig = {
               if (process.env.NODE_ENV === 'development') {
                 console.error("Failed to send welcome email to Google OAuth user:", error);
               }
+              log('error', 'Failed to send welcome email', dbUser.uid.toString(), true, { 
+                email: user.email 
+              });
             }
+          } else {
+            // Log existing Google user login
+            log('info', 'Google user login', dbUser.uid.toString(), true, { 
+              email: user.email,
+              provider: 'google'
+            });
           }
 
           token.userId = dbUser.uid.toString();

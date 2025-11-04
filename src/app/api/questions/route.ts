@@ -6,16 +6,22 @@ import { eq } from "drizzle-orm";
 import { isAdminUser } from "@/lib/admin";
 import { createQuestionSchema } from "@/validators/vayam";
 import { EmailNotifications } from "@/utils/email-templates";
+import { log } from "@/lib/logger";
 
 export async function POST(req: NextRequest) {
+  const session = await auth();
+  const userId = session?.user?.id;
+  const isAuthenticated = !!session;
+
   try {
-    const session = await auth();
     if (!session || !session.user?.email) {
+      log('warn', 'Unauthorized question creation attempt', undefined, false);
       return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
     }
 
     // Check if user is admin
     if (!isAdminUser(session.user.email)) {
+      log('warn', 'Non-admin tried to create question', userId, isAuthenticated);
       return NextResponse.json(
         { error: "Unauthorized: Admin access required" },
         { status: 403 }
@@ -87,25 +93,39 @@ export async function POST(req: NextRequest) {
       .returning();
 
     // Send email invitations to all allowed emails
-    const emailPromises = allowedEmails.map(async (email) => {
-      try {
-        await EmailNotifications.sendSMEInvitation(email, {
-          questionTitle: title,
-          questionDescription: description,
-          questionId: newQuestion.id,
-          questionUrl: `${process.env.NEXTAUTH_URL || 'http://localhost:3000'}/questions/${newQuestion.id}`,
-          platformUrl: process.env.NEXTAUTH_URL || 'http://localhost:3000',
-          supportUrl: `${process.env.NEXTAUTH_URL || 'http://localhost:3000'}/support`,
-          unsubscribeUrl: `${process.env.NEXTAUTH_URL || 'http://localhost:3000'}/unsubscribe?email=${encodeURIComponent(email)}`
-        });
-        // SME invitation sent successfully
-      } catch {
-        // Don't fail the entire request if email fails
-      }
+   const emailPromises = allowedEmails.map(async (email) => {
+  try {
+    const namePart = email.split("@")[0];
+    const formattedName = namePart
+      .replace(/[._-]/g, " ")
+      .replace(/\b\w/g, (c) => c.toUpperCase());
+
+    await EmailNotifications.sendSMEInvitation(email, {
+      name: formattedName,
+      questionTitle: title,
+      questionDescription: description,
+      questionId: newQuestion.id,
+      questionUrl: `${process.env.NEXTAUTH_URL || 'http://localhost:3000'}/questions/${newQuestion.id}`,
+      platformUrl: process.env.NEXTAUTH_URL || 'http://localhost:3000',
+      supportUrl: `${process.env.NEXTAUTH_URL || 'http://localhost:3000'}/support`,
+      unsubscribeUrl: `${process.env.NEXTAUTH_URL || 'http://localhost:3000'}/unsubscribe?email=${encodeURIComponent(email)}`
     });
+  } catch (err) {
+    // log or silently fail
+    log('warn', 'Failed to send SME invitation', userId, isAuthenticated, { email, err });
+  }
+});
+
 
     // Wait for all emails to be processed (but don't fail if they fail)
     await Promise.allSettled(emailPromises);
+
+    // Log successful question creation
+    log('info', 'Question created successfully', userId, isAuthenticated, {
+      questionId: newQuestion.id,
+      title: title,
+      allowedEmailsCount: allowedEmails.length
+    });
 
     return NextResponse.json(
       {
@@ -116,6 +136,10 @@ export async function POST(req: NextRequest) {
       { status: 201 }
     );
   } catch (error) {
+    log('error', 'Error creating question', userId, isAuthenticated, {
+      error: error instanceof Error ? error.message : 'Unknown error'
+    });
+
     console.error("Error creating question:", error);
     return NextResponse.json(
       {
@@ -135,9 +159,13 @@ export async function POST(req: NextRequest) {
 }
 
 export async function GET() {
+  const session = await auth();
+  const userId = session?.user?.id;
+  const isAuthenticated = !!session;
+
   try {
-    const session = await auth();
     if (!session || !session.user?.email) {
+      log('warn', 'Unauthorized attempt to fetch questions', undefined, false);
       return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
     }
 
@@ -145,10 +173,10 @@ export async function GET() {
     let allQuestions;
     try {
       // If admin, get all questions; otherwise only active ones
-      const whereCondition = isAdminUser(session.user?.email) 
-        ? undefined 
+      const whereCondition = isAdminUser(session.user?.email)
+        ? undefined
         : eq(questions.isActive, true);
-        
+
       allQuestions = await db
         .select({
           id: questions.id,
@@ -189,12 +217,17 @@ export async function GET() {
     // Filter questions based on user access
     const accessibleQuestions = allQuestions.filter(question => {
       const isAdmin = isAdminUser(session.user?.email);
-      
+
       // Admins can see all questions (active and inactive)
       if (isAdmin) return true;
-      
+
       // Regular users can see all active questions (not just allowed emails)
       return question.isActive;
+    });
+
+    // Log successful fetch
+    log('info', 'Questions fetched successfully', userId, isAuthenticated, {
+      questionCount: accessibleQuestions.length
     });
 
     return NextResponse.json({
@@ -202,6 +235,10 @@ export async function GET() {
       data: accessibleQuestions,
     });
   } catch (error) {
+    log('error', 'Error fetching questions', userId, isAuthenticated, {
+      error: error instanceof Error ? error.message : 'Unknown error'
+    });
+
     console.error("Error fetching questions:", error);
     return NextResponse.json(
       {

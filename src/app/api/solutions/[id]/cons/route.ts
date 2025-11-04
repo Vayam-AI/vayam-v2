@@ -4,9 +4,10 @@ import { db } from "@/db/drizzle";
 import { solutions, cons, users, participants, questions } from "@/db/schema";
 import { eq } from "drizzle-orm";
 import { z } from "zod";
+import { log } from "@/lib/logger";
 
 const addConSchema = z.object({
-  content: z.string().min(1, "Content is required").max(1000, "Content too long"),
+  content: z.string().min(1, "Content is required").max(200, "Content too long"),
 });
 
 export async function POST(
@@ -111,6 +112,8 @@ export async function POST(
       })
       .where(eq(questions.id, solutionData.questionId));
 
+    log('info', 'Con added successfully', userId.toString(), true, { solutionId });
+
     return NextResponse.json({
       success: true,
       data: newCon[0],
@@ -118,10 +121,9 @@ export async function POST(
     });
 
   } catch (error) {
-    // Add con error logged in development only
-    if (process.env.NODE_ENV === 'development') {
-      console.error("Error adding con:", error);
-    }
+    log('error', 'Con creation error', undefined, false, {
+      error: error instanceof Error ? error.message : 'Unknown error'
+    });
     
     if (error instanceof z.ZodError) {
       return NextResponse.json(

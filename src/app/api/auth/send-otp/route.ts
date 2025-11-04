@@ -1,10 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
 import { otpService } from "@/utils/otp";
 import { EmailNotifications } from "@/utils/email-templates";
+import { log } from "@/lib/logger";
 
 export async function POST(request: NextRequest) {
   try {
     const { email } = await request.json();
+    
+    log('info', 'OTP send request', undefined, false, { email });
 
     // Validate input
     if (!email) {
@@ -27,6 +30,7 @@ export async function POST(request: NextRequest) {
     const hasActiveOTP = await otpService.hasActiveOTP(email);
     if (hasActiveOTP) {
       const ttl = await otpService.getOTPTTL(email);
+      log('warn', 'OTP rate limit exceeded', undefined, false, { email, retryAfter: ttl });
       return NextResponse.json(
         { 
           error: "OTP already sent. Please wait before requesting a new one.",
@@ -44,11 +48,14 @@ export async function POST(request: NextRequest) {
     const emailResult = await EmailNotifications.sendOTPVerification(email, { otp });
 
     if (!emailResult.success) {
+      log('error', 'Failed to send OTP email', undefined, false, { email });
       return NextResponse.json(
         { error: "Failed to send OTP email. Please try again." },
         { status: 500 }
       );
     }
+
+    log('info', 'OTP sent successfully', undefined, false, { email });
 
     return NextResponse.json(
       { message: "OTP sent successfully to your email" },
@@ -56,10 +63,9 @@ export async function POST(request: NextRequest) {
     );
 
   } catch (error) {
-    // Send OTP error logged in development only
-    if (process.env.NODE_ENV === 'development') {
-      console.error("Send OTP error:", error);
-    }
+    log('error', 'Send OTP error', undefined, false, { 
+      error: error instanceof Error ? error.message : 'Unknown error' 
+    });
     return NextResponse.json(
       { error: "Internal server error" },
       { status: 500 }

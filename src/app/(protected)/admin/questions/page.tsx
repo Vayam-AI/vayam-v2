@@ -6,36 +6,26 @@ import { motion, AnimatePresence } from "framer-motion";
 import axios from "axios";
 import { useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
-import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
-import { Switch } from "@/components/ui/switch";
-import { Label } from "@/components/ui/label";
 import {
   MessageSquare,
   Users,
   Plus,
   Edit,
-  Trash2,
-  Save,
-  X,
   ArrowLeft,
   Activity,
   Clock,
   Mail,
+  Trash2,
 } from "lucide-react";
 import { LoaderOne } from "@/components/ui/loader";
 import { isAdminUser } from "@/lib/admin";
-import { TagInput } from "@/components/ui/tag-input";
 import { toast } from "sonner";
+import { QuestionCard } from "@/components/admin/question-card";
+import { QuestionDialogs } from "@/components/admin/question-dialogs";
 
 interface Question {
   id: number;
@@ -50,139 +40,6 @@ interface Question {
   updatedAt: string;
   ownerEmail: string;
   ownerUsername: string | null;
-}
-
-function QuestionCard({
-  question,
-  onClick,
-  selected,
-  onEdit,
-  onDelete,
-  onInvite,
-}: {
-  question: Question;
-  onClick: () => void;
-  selected: boolean;
-  onEdit: (question: Question) => void;
-  onDelete: (question: Question) => void;
-  onInvite: (question: Question) => void;
-}) {
-  const handleEdit = (e: React.MouseEvent) => {
-    e.stopPropagation();
-    onEdit(question);
-  };
-
-  const handleDelete = (e: React.MouseEvent) => {
-    e.stopPropagation();
-    onDelete(question);
-  };
-
-  const handleInvite = (e: React.MouseEvent) => {
-    e.stopPropagation();
-    onInvite(question);
-  };
-
-  return (
-    <motion.div
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      whileHover={{ y: -2 }}
-      transition={{ type: "spring", stiffness: 200, damping: 20 }}
-      className={`w-full cursor-pointer ${
-        selected ? "ring-2 ring-primary/50" : ""
-      }`}
-      onClick={onClick}
-    >
-      <Card
-        className={`relative overflow-hidden group transition-all duration-300 border-border/50 hover:border-primary/30 hover:shadow-md ${
-          !question.isActive ? "opacity-75 border-dashed" : ""
-        }`}
-      >
-        <CardHeader className="flex flex-row items-start gap-3 pb-3">
-          <div className="p-2 bg-primary/10 rounded-lg shrink-0">
-            <MessageSquare className="w-4 h-4 text-primary" />
-          </div>
-          <div className="flex-1 min-w-0">
-            <div className="flex items-start justify-between gap-2 mb-2">
-              <CardTitle className="text-base font-semibold line-clamp-2 text-foreground">
-                {question.title}
-                {!question.isActive && (
-                  <Badge
-                    variant="outline"
-                    className="ml-2 text-xs text-muted-foreground"
-                  >
-                    Inactive
-                  </Badge>
-                )}
-              </CardTitle>
-            </div>
-            <p className="text-sm text-muted-foreground line-clamp-2 mb-3">
-              {question.description}
-            </p>
-            {question.tags && question.tags.length > 0 && (
-              <div className="flex flex-wrap gap-1 mb-3">
-                {question.tags.slice(0, 3).map((tag) => (
-                  <Badge
-                    key={tag}
-                    variant="outline"
-                    className="text-xs bg-muted/50 border-border/50"
-                  >
-                    {tag}
-                  </Badge>
-                ))}
-                {question.tags.length > 3 && (
-                  <Badge
-                    variant="outline"
-                    className="text-xs bg-muted/50 border-border/50"
-                  >
-                    +{question.tags.length - 3}
-                  </Badge>
-                )}
-              </div>
-            )}
-          </div>
-        </CardHeader>
-        <CardContent className="pt-0">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-4 text-xs text-muted-foreground">
-              <div className="flex items-center gap-1">
-                <Users className="w-3 h-3" />
-                <span>{question.participantCount}</span>
-              </div>
-
-             
-            </div>
-            <div className="opacity-0 group-hover:opacity-100 transition-opacity duration-200 flex gap-1">
-              <Button
-                size="sm"
-                variant="ghost"
-                onClick={handleInvite}
-                className="h-7 w-7 p-0 hover:bg-blue-500/10"
-              >
-                <Mail className="h-3 w-3 text-blue-600" />
-              </Button>
-              <Button
-                size="sm"
-                variant="ghost"
-                onClick={handleEdit}
-                className="h-7 w-7 p-0 hover:bg-blue-500/10"
-              >
-                <Edit className="h-3 w-3 text-blue-600" />
-              </Button>
-              <Button
-                size="sm"
-                variant="ghost"
-                onClick={handleDelete}
-                className="h-7 w-7 p-0 hover:bg-red-500/10"
-              >
-                <Trash2 className="h-3 w-3 text-red-600" />
-              </Button>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-    </motion.div>
-  );
 }
 
 export default function AdminQuestionsDashboard() {
@@ -206,17 +63,6 @@ export default function AdminQuestionsDashboard() {
   const [questionToInvite, setQuestionToInvite] = useState<Question | null>(
     null
   );
-
-  // Form state
-  const [formData, setFormData] = useState({
-    title: "",
-    description: "",
-    tags: [] as string[],
-    allowedEmails: [] as string[],
-    isActive: true,
-  });
-
-  const [inviteEmails, setInviteEmails] = useState<string[]>([]);
 
   const isAdmin = isAdminUser(session?.user?.email);
 
@@ -286,169 +132,12 @@ export default function AdminQuestionsDashboard() {
     setSelected(question);
   };
 
-  // CRUD functions
-  const resetForm = () => {
-    setFormData({
-      title: "",
-      description: "",
-      tags: [],
-      allowedEmails: [],
-      isActive: true,
-    });
-  };
-
-  const handleCreate = async () => {
-    if (!formData.title.trim()) return;
-
-    setDashboardLoading(true);
-    try {
-      const response = await axios.post("/api/questions", {
-        title: formData.title.trim(),
-        description: formData.description.trim(),
-        tags: formData.tags,
-        allowedEmails: formData.allowedEmails,
-        isPublic: false,
-        isActive: formData.isActive,
-      });
-
-      if (response.data.success) {
-        await fetchQuestions();
-        setShowCreateDialog(false);
-        resetForm();
-        toast.success("Question created successfully!");
-      }
-    } catch (error: unknown) {
-      console.error("Error creating question:", error);
-      const err = error as { response?: { data?: { error?: string } } };
-      toast.error(err.response?.data?.error || "Failed to create question");
-    } finally {
-      setDashboardLoading(false);
-    }
-  };
-
-  const handleEdit = async () => {
-    if (!formData.title.trim() || !questionToEdit) return;
-
-    setDashboardLoading(true);
-    try {
-      // Check if there are new emails to invite
-      const oldEmails = questionToEdit.allowedEmails || [];
-      const newEmails = formData.allowedEmails.filter(
-        (email) => !oldEmails.includes(email)
-      );
-
-      const response = await axios.put(`/api/questions/${questionToEdit.id}`, {
-        title: formData.title.trim(),
-        description: formData.description.trim(),
-        tags: formData.tags,
-        allowedEmails: formData.allowedEmails,
-        isPublic: false,
-        isActive: formData.isActive,
-      });
-
-      if (response.data.success) {
-        // Send invitations to new emails if any
-        if (newEmails.length > 0) {
-          try {
-            await axios.post("/api/invite-sme", {
-              emails: newEmails,
-              questionTitle: formData.title,
-              questionId: questionToEdit.id,
-              questionDescription: formData.description,
-            });
-            toast.success(
-              `Question updated and invitations sent to ${newEmails.length} new SME(s)!`
-            );
-          } catch (emailError) {
-            console.error("Error sending invitations:", emailError);
-            toast.success(
-              "Question updated successfully, but some invitations failed to send"
-            );
-          }
-        } else {
-          toast.success("Question updated successfully!");
-        }
-
-        await fetchQuestions();
-        setShowEditDialog(false);
-        setQuestionToEdit(null);
-        resetForm();
-      }
-    } catch (error: unknown) {
-      console.error("Error updating question:", error);
-      const err = error as { response?: { data?: { error?: string } } };
-      toast.error(err.response?.data?.error || "Failed to update question");
-    } finally {
-      setDashboardLoading(false);
-    }
-  };
-
-  const handleDelete = async () => {
-    if (!questionToDelete) return;
-
-    setDashboardLoading(true);
-    try {
-      const response = await axios.delete(
-        `/api/questions/${questionToDelete.id}`
-      );
-
-      if (response.data.success) {
-        await fetchQuestions();
-        setShowDeleteDialog(false);
-        setQuestionToDelete(null);
-        toast.success("Question deleted successfully!");
-      }
-    } catch (error: unknown) {
-      console.error("Error deleting question:", error);
-      const err = error as { response?: { data?: { error?: string } } };
-      toast.error(err.response?.data?.error || "Failed to delete question");
-    } finally {
-      setDashboardLoading(false);
-    }
-  };
-
-  const handleInviteSME = async () => {
-    if (!questionToInvite || inviteEmails.length === 0) return;
-
-    setDashboardLoading(true);
-    try {
-      const response = await axios.post("/api/invite-sme", {
-        emails: inviteEmails,
-        questionTitle: questionToInvite.title,
-        questionId: questionToInvite.id,
-        questionDescription: questionToInvite.description,
-      });
-
-      if (response.data.success) {
-        setShowInviteDialog(false);
-        setQuestionToInvite(null);
-        setInviteEmails([]);
-        toast.success(response.data.message);
-      }
-    } catch (error: unknown) {
-      console.error("Error sending invitations:", error);
-      const err = error as { response?: { data?: { error?: string } } };
-      toast.error(err.response?.data?.error || "Failed to send invitations");
-    } finally {
-      setDashboardLoading(false);
-    }
-  };
-
+  // Dialog handlers
   const openCreateDialog = () => {
-    resetForm();
     setShowCreateDialog(true);
   };
 
   const openEditDialog = (question: Question) => {
-    setFormData({
-      title: question.title || "",
-      description: question.description || "",
-      tags: Array.isArray(question.tags) ? question.tags : [],
-      allowedEmails: Array.isArray(question.allowedEmails)
-        ? question.allowedEmails
-        : [],
-      isActive: question.isActive,
-    });
     setQuestionToEdit(question);
     setShowEditDialog(true);
   };
@@ -460,8 +149,25 @@ export default function AdminQuestionsDashboard() {
 
   const openInviteDialog = (question: Question) => {
     setQuestionToInvite(question);
-    setInviteEmails([]);
     setShowInviteDialog(true);
+  };
+
+  // Callback handlers for when operations complete
+  const handleQuestionCreated = () => {
+    fetchQuestions();
+  };
+
+  const handleQuestionUpdated = () => {
+    fetchQuestions();
+  };
+
+  const handleQuestionDeleted = () => {
+    fetchQuestions();
+    setSelected(null); // Clear selected if it was deleted
+  };
+
+  const handleInvitesSent = () => {
+    fetchQuestions();
   };
 
   if (status === "loading" || dashboardLoading) {
@@ -607,7 +313,7 @@ export default function AdminQuestionsDashboard() {
                       <p className="text-sm text-muted-foreground mb-2">
                         Question Description
                       </p>
-                      <p className="text-foreground leading-relaxed">
+                      <p className="text-foreground leading-relaxed break-words whitespace-pre-wrap overflow-hidden">
                         {selected.description}
                       </p>
                     </div>
@@ -715,262 +421,24 @@ export default function AdminQuestionsDashboard() {
             </motion.div>
           )}
 
-          {/* Create Dialog */}
-          <Dialog open={showCreateDialog} onOpenChange={setShowCreateDialog}>
-            <DialogContent className="sm:max-w-[525px]">
-              <DialogHeader>
-                <DialogTitle>Create New Question</DialogTitle>
-              </DialogHeader>
-              <div className="grid gap-4 py-4">
-                <div className="grid gap-2">
-                  <Label htmlFor="title">Question Title *</Label>
-                  <Textarea
-                    id="title"
-                    placeholder="Enter your question title..."
-                    value={formData.title}
-                    onChange={(e) =>
-                      setFormData({ ...formData, title: e.target.value })
-                    }
-                    className="min-h-[80px]"
-                  />
-                </div>
-                <div className="grid gap-2">
-                  <Label htmlFor="description">Description</Label>
-                  <Textarea
-                    id="description"
-                    placeholder="Provide additional context and details..."
-                    value={formData.description}
-                    onChange={(e) =>
-                      setFormData({ ...formData, description: e.target.value })
-                    }
-                    className="min-h-[100px]"
-                  />
-                </div>
-                <div className="grid gap-2">
-                  <Label htmlFor="tags">Tags</Label>
-                  <TagInput
-                    tags={formData.tags}
-                    onChange={(tags) => setFormData({ ...formData, tags })}
-                    placeholder="Add tags..."
-                  />
-                </div>
-                <div className="grid gap-2">
-                  <Label htmlFor="allowedEmails">SME Email Addresses</Label>
-                  <TagInput
-                    tags={formData.allowedEmails}
-                    onChange={(emails) =>
-                      setFormData({ ...formData, allowedEmails: emails })
-                    }
-                    placeholder="Add email addresses..."
-                  />
-                  <p className="text-xs text-muted-foreground">
-                    SMEs will receive email invitations to contribute to this
-                    question
-                  </p>
-                </div>
-                <div className="flex items-center space-x-2">
-                  <Switch
-                    checked={formData.isActive}
-                    onCheckedChange={(checked) =>
-                      setFormData({ ...formData, isActive: checked })
-                    }
-                  />
-                  <Label htmlFor="isActive">Active question</Label>
-                </div>
-              </div>
-              <div className="flex justify-end gap-2">
-                <Button
-                  variant="outline"
-                  onClick={() => setShowCreateDialog(false)}
-                >
-                  <X className="h-4 w-4 mr-2" />
-                  Cancel
-                </Button>
-                <Button
-                  onClick={handleCreate}
-                  disabled={!formData.title.trim() || dashboardLoading}
-                >
-                  <Save className="h-4 w-4 mr-2" />
-                  Create Question
-                </Button>
-              </div>
-            </DialogContent>
-          </Dialog>
-
-          {/* Edit Dialog */}
-          <Dialog open={showEditDialog} onOpenChange={setShowEditDialog}>
-            <DialogContent className="sm:max-w-[525px]">
-              <DialogHeader>
-                <DialogTitle>Edit Question</DialogTitle>
-              </DialogHeader>
-              <div className="grid gap-4 py-4">
-                <div className="grid gap-2">
-                  <Label htmlFor="edit-title">Question Title *</Label>
-                  <Textarea
-                    id="edit-title"
-                    placeholder="Enter your question title..."
-                    value={formData.title}
-                    onChange={(e) =>
-                      setFormData({ ...formData, title: e.target.value })
-                    }
-                    className="min-h-[80px]"
-                  />
-                </div>
-                <div className="grid gap-2">
-                  <Label htmlFor="edit-description">Description</Label>
-                  <Textarea
-                    id="edit-description"
-                    placeholder="Provide additional context and details..."
-                    value={formData.description}
-                    onChange={(e) =>
-                      setFormData({ ...formData, description: e.target.value })
-                    }
-                    className="min-h-[100px]"
-                  />
-                </div>
-                <div className="grid gap-2">
-                  <Label htmlFor="edit-tags">Tags</Label>
-                  <TagInput
-                    tags={formData.tags}
-                    onChange={(tags) => setFormData({ ...formData, tags })}
-                    placeholder="Add tags..."
-                  />
-                </div>
-                <div className="grid gap-2">
-                  <Label htmlFor="edit-allowedEmails">
-                    SME Email Addresses
-                  </Label>
-                  <TagInput
-                    tags={formData.allowedEmails}
-                    onChange={(emails) =>
-                      setFormData({ ...formData, allowedEmails: emails })
-                    }
-                    placeholder="Add email addresses..."
-                  />
-                  <p className="text-xs text-muted-foreground">
-                    SMEs will receive email invitations to contribute to this
-                    question. New emails will be automatically invited.
-                  </p>
-                </div>
-                <div className="flex items-center space-x-2">
-                  <Switch
-                    checked={formData.isActive}
-                    onCheckedChange={(checked) =>
-                      setFormData({ ...formData, isActive: checked })
-                    }
-                  />
-                  <Label htmlFor="edit-isActive">Active question</Label>
-                </div>
-              </div>
-              <div className="flex justify-end gap-2">
-                <Button
-                  variant="outline"
-                  onClick={() => setShowEditDialog(false)}
-                >
-                  <X className="h-4 w-4 mr-2" />
-                  Cancel
-                </Button>
-                <Button
-                  onClick={handleEdit}
-                  disabled={!formData.title.trim() || dashboardLoading}
-                >
-                  <Save className="h-4 w-4 mr-2" />
-                  Update Question
-                </Button>
-              </div>
-            </DialogContent>
-          </Dialog>
-
-          {/* Delete Dialog */}
-          <Dialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
-            <DialogContent className="sm:max-w-[425px]">
-              <DialogHeader>
-                <DialogTitle>Delete Question</DialogTitle>
-              </DialogHeader>
-              <div className="py-4">
-                <p className="text-sm text-muted-foreground">
-                  Are you sure you want to delete this question? This action
-                  cannot be undone and will remove all associated data.
-                </p>
-                {questionToDelete && (
-                  <div className="mt-4 p-3 bg-muted rounded-md">
-                    <p className="font-medium text-sm">
-                      {questionToDelete.title}
-                    </p>
-                    <p className="text-xs text-muted-foreground mt-1">
-                      {questionToDelete.description}
-                    </p>
-                  </div>
-                )}
-              </div>
-              <div className="flex justify-end gap-2">
-                <Button
-                  variant="outline"
-                  onClick={() => setShowDeleteDialog(false)}
-                >
-                  Cancel
-                </Button>
-                <Button
-                  variant="destructive"
-                  onClick={handleDelete}
-                  disabled={dashboardLoading}
-                >
-                  <Trash2 className="h-4 w-4 mr-2" />
-                  Delete Question
-                </Button>
-              </div>
-            </DialogContent>
-          </Dialog>
-
-          {/* Invite SME Dialog */}
-          <Dialog open={showInviteDialog} onOpenChange={setShowInviteDialog}>
-            <DialogContent className="sm:max-w-[525px]">
-              <DialogHeader>
-                <DialogTitle>Invite SMEs</DialogTitle>
-              </DialogHeader>
-              <div className="py-4">
-                <p className="text-sm text-muted-foreground mb-4">
-                  Send email invitations to Subject Matter Experts for this
-                  question:
-                </p>
-                {questionToInvite && (
-                  <div className="mb-4 p-3 bg-muted rounded-md">
-                    <p className="font-medium text-sm">
-                      {questionToInvite.title}
-                    </p>
-                  </div>
-                )}
-                <div className="grid gap-2">
-                  <Label htmlFor="invite-emails">Email Addresses</Label>
-                  <TagInput
-                    tags={inviteEmails}
-                    onChange={setInviteEmails}
-                    placeholder="Add email addresses..."
-                  />
-                  <p className="text-xs text-muted-foreground">
-                    These users will receive email invitations to contribute to
-                    this question
-                  </p>
-                </div>
-              </div>
-              <div className="flex justify-end gap-2">
-                <Button
-                  variant="outline"
-                  onClick={() => setShowInviteDialog(false)}
-                >
-                  <X className="h-4 w-4 mr-2" />
-                  Cancel
-                </Button>
-                <Button
-                  onClick={handleInviteSME}
-                  disabled={inviteEmails.length === 0 || dashboardLoading}
-                >
-                  <Mail className="h-4 w-4 mr-2" />
-                  Send Invitations
-                </Button>
-              </div>
-            </DialogContent>
-          </Dialog>
+          {/* Question Dialogs */}
+          <QuestionDialogs
+            showCreateDialog={showCreateDialog}
+            setShowCreateDialog={setShowCreateDialog}
+            showEditDialog={showEditDialog}
+            setShowEditDialog={setShowEditDialog}
+            questionToEdit={questionToEdit}
+            showDeleteDialog={showDeleteDialog}
+            setShowDeleteDialog={setShowDeleteDialog}
+            questionToDelete={questionToDelete}
+            showInviteDialog={showInviteDialog}
+            setShowInviteDialog={setShowInviteDialog}
+            questionToInvite={questionToInvite}
+            onQuestionCreated={handleQuestionCreated}
+            onQuestionUpdated={handleQuestionUpdated}
+            onQuestionDeleted={handleQuestionDeleted}
+            onInvitesSent={handleInvitesSent}
+          />
         </div>
       </div>
     </div>

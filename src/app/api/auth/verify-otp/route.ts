@@ -4,10 +4,13 @@ import { db } from "@/db/drizzle";
 import { users } from "@/db/schema";
 import { eq } from "drizzle-orm";
 import { EmailNotifications } from "@/utils/email-templates";
+import { log } from "@/lib/logger";
 
 export async function POST(request: NextRequest) {
   try {
     const { email, otp } = await request.json();
+    
+    log('info', 'OTP verification attempt', undefined, false, { email });
 
     // Validate input
     if (!email || !otp) {
@@ -21,6 +24,7 @@ export async function POST(request: NextRequest) {
     const isValidOTP = await otpService.verifyOTP(email, otp);
     
     if (!isValidOTP) {
+      log('warn', 'Invalid or expired OTP', undefined, false, { email });
       return NextResponse.json(
         { error: "Invalid or expired OTP" },
         { status: 400 }
@@ -35,24 +39,30 @@ export async function POST(request: NextRequest) {
       .returning();
 
     if (updatedUser.length === 0) {
+      log('error', 'User not found during OTP verification', undefined, false, { email });
       return NextResponse.json(
         { error: "User not found" },
         { status: 404 }
       );
     }
 
+    const userId = updatedUser[0].uid.toString();
+
     // Send welcome email to newly verified user
     try {
+      const name = email.split('@')[0];
+      const capitalizedName = name.charAt(0).toUpperCase() + name.slice(1);
+
       await EmailNotifications.sendWelcomeEmail(email, {
+        name: capitalizedName,
         platformUrl: process.env.NEXTAUTH_URL || 'http://localhost:3000',
         dashboardUrl: `${process.env.NEXTAUTH_URL || 'http://localhost:3000'}/dashboard`
       });
-    } catch (error) {
-      // Log welcome email error but don't fail the verification
-      if (process.env.NODE_ENV === 'development') {
-        console.error("Failed to send welcome email:", error);
-      }
+    } catch {
+      log('error', 'Failed to send welcome email', userId, false, { email });
     }
+
+    log('info', 'Email verified successfully', userId, false, { email });
 
     return NextResponse.json(
       { 
@@ -63,10 +73,9 @@ export async function POST(request: NextRequest) {
     );
 
   } catch (error) {
-    // Verify OTP error logged in development only
-    if (process.env.NODE_ENV === 'development') {
-      console.error("Verify OTP error:", error);
-    }
+    log('error', 'OTP verification error', undefined, false, { 
+      error: error instanceof Error ? error.message : 'Unknown error' 
+    });
     return NextResponse.json(
       { error: "Internal server error" },
       { status: 500 }

@@ -467,7 +467,7 @@ export const MobileOtpAuth = () => {
                       <Input
                         id="phone"
                         type="tel"
-                        placeholder="9876543210"
+                        placeholder="98xxxxxxxx"
                         value={phoneNumber}
                         onChange={handlePhoneNumberChange}
                         disabled={loading}

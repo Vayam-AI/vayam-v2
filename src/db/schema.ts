@@ -9,6 +9,7 @@ import {
   smallint,
   unique,
   check,
+  jsonb
 } from "drizzle-orm/pg-core";
 import { relations, sql } from "drizzle-orm";
 
@@ -113,6 +114,23 @@ export const participants = pgTable("participants", {
   // Unique constraint to ensure one participation record per user per question
   uniqueParticipation: unique().on(table.questionId, table.userId),
 }));
+
+export const feedback = pgTable("feedback", {
+  id: serial("id").primaryKey(),
+  uid: integer("uid").references(() => users.uid).notNull(),
+  comment: text("comment").notNull(),
+  createdAt: timestamp("created_at").defaultNow(),
+})
+
+export const logs = pgTable("logs", {
+  id: serial("id").primaryKey(),
+  level: varchar("level", { length: 20 }).notNull(),
+  message: text("message").notNull(),
+  userId: varchar("user_id", { length: 255 }).default("anonymous"),
+  isAuthenticated: boolean("is_authenticated").default(false),
+  extraData: jsonb("extra_data"),
+  createdAt: timestamp("created_at").defaultNow(),
+});
 
 // Relations for better querying
 export const usersRelations = relations(users, ({ many }) => ({

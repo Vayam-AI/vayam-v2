@@ -88,6 +88,7 @@ export class EmailTemplateProcessor {
 
 // Template data interfaces for type safety
 export interface SMEInvitationData extends TemplateData {
+  name: string;
   questionTitle: string;
   questionId: string | number;
   questionDescription?: string;
@@ -99,6 +100,7 @@ export interface SMEInvitationData extends TemplateData {
 }
 
 export interface WelcomeData extends TemplateData {
+  name: string;
   platformUrl: string;
   [key: string]: string | number | boolean | undefined;
 }

@@ -23,6 +23,7 @@ import {
 import { useState, useEffect } from "react";
 import { isAdminUser } from "@/lib/admin";
 
+
 export default function Navbar() {
   const { data: session, status } = useSession();
   const router = useRouter();
@@ -69,9 +70,10 @@ export default function Navbar() {
               className="transition-all duration-200"
             >
               <Link href="/dashboard" className="flex items-center space-x-3 group">
-                <span className="text-xl sm:text-2xl font-bold text-foreground tracking-tight group-hover:text-foreground/90 transition-colors">
+                <span className="font-roboto-slab text-2xl sm:text-3xl font-bold text-foreground tracking-tight group-hover:text-foreground/90 transition-colors">
                   Vayam
                 </span>
+
               </Link>
             </motion.div>
 
@@ -140,7 +142,7 @@ export default function Navbar() {
                           Dashboard
                         </Link>
                       </DropdownMenuItem>
-                      
+
                       <DropdownMenuItem
                         asChild
                         className="hover:bg-muted/80 transition-colors rounded-md my-1"
@@ -153,7 +155,7 @@ export default function Navbar() {
                           Profile
                         </Link>
                       </DropdownMenuItem>
-                      
+
                       {isAdmin && (
                         <>
                           <DropdownMenuSeparator className="bg-border/50 my-2" />
@@ -176,7 +178,7 @@ export default function Navbar() {
                           </DropdownMenuItem>
                         </>
                       )}
-                      
+
                       <DropdownMenuSeparator className="bg-border/50 my-2" />
                       <DropdownMenuItem
                         onClick={handleLogout}
@@ -330,7 +332,7 @@ export default function Navbar() {
                           Profile
                         </Link>
                       </Button>
-                      
+
                       {isAdmin && (
                         <>
                           <div className="border-t border-border/50 my-4" />

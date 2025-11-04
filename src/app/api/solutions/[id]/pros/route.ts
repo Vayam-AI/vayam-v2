@@ -4,9 +4,10 @@ import { db } from "@/db/drizzle";
 import { solutions, pros, users, participants, questions } from "@/db/schema";
 import { eq } from "drizzle-orm";
 import { z } from "zod";
+import { log } from "@/lib/logger";
 
 const addProSchema = z.object({
-  content: z.string().min(1, "Content is required").max(1000, "Content too long"),
+  content: z.string().min(1, "Content is required").max(200, "Content too long"),
 });
 
 export async function POST(
@@ -111,6 +112,8 @@ export async function POST(
       })
       .where(eq(questions.id, solutionData.questionId));
 
+    log('info', 'Pro added successfully', userId.toString(), true, { solutionId });
+
     return NextResponse.json({
       success: true,
       data: newPro[0],
@@ -118,7 +121,9 @@ export async function POST(
     });
 
   } catch (error) {
-    console.error("Error adding pro:", error);
+    log('error', 'Pro creation error', undefined, false, {
+      error: error instanceof Error ? error.message : 'Unknown error'
+    });
     
     if (error instanceof z.ZodError) {
       return NextResponse.json(

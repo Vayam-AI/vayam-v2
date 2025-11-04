@@ -4,6 +4,7 @@ import { db } from "@/db/drizzle";
 import { users } from "@/db/schema";
 import { eq } from "drizzle-orm";
 import { z } from "zod";
+import { log } from "@/lib/logger";
 
 // Profile response interface
 interface ProfileResponse {
@@ -41,11 +42,14 @@ export async function GET() {
     const session = await auth();
     
     if (!session?.user?.email) {
+      log('warn', 'Unauthorized profile fetch', undefined, false);
       return NextResponse.json(
         { success: false, message: "Unauthorized" },
         { status: 401 }
       );
     }
+
+    const userId = session.user.id;
 
     // Get user profile from database
     const userProfile = await db
@@ -81,12 +85,17 @@ export async function GET() {
       updatedAt: profile.createdAt?.toISOString() || new Date().toISOString(), // Using createdAt as updatedAt since we don't have updatedAt field
     };
 
+    log('info', 'Profile fetched successfully', userId, true);
+
     return NextResponse.json({
       success: true,
       data: response,
     });
 
-  } catch {
+  } catch (error) {
+    log('error', 'Profile fetch error', undefined, false, { 
+      error: error instanceof Error ? error.message : 'Unknown error' 
+    });
     return NextResponse.json(
       { success: false, message: "Internal server error" },
       { status: 500 }
@@ -100,14 +109,18 @@ export async function PUT(request: NextRequest) {
     const session = await auth();
     
     if (!session?.user?.email) {
+      log('warn', 'Unauthorized profile update', undefined, false);
       return NextResponse.json(
         { success: false, message: "Unauthorized" },
         { status: 401 }
       );
     }
 
+    const userId = session.user.id;
     const body = await request.json();
     const validatedData = profileUpdateSchema.parse(body);
+    
+    log('info', 'Profile update attempt', userId, true);
 
     // Check if user exists
     const existingUser = await db
@@ -178,6 +191,8 @@ export async function PUT(request: NextRequest) {
       updatedAt: new Date().toISOString(), // Current timestamp for updates
     };
 
+    log('info', 'Profile updated successfully', userId, true);
+
     return NextResponse.json({
       success: true,
       data: response,
@@ -186,11 +201,16 @@ export async function PUT(request: NextRequest) {
 
   } catch (error) {
     if (error instanceof z.ZodError) {
+      log('warn', 'Profile update validation error', undefined, false);
       return NextResponse.json(
         { success: false, message: "Invalid data", errors: error.issues },
         { status: 400 }
       );
     }
+
+    log('error', 'Profile update error', undefined, false, { 
+      error: error instanceof Error ? error.message : 'Unknown error' 
+    });
 
     return NextResponse.json(
       { success: false, message: "Internal server error" },

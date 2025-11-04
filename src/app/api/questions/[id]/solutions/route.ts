@@ -5,10 +5,11 @@ import { questions, solutions, users, participants } from "@/db/schema";
 import { eq } from "drizzle-orm";
 import { z } from "zod";
 import { EmailNotifications } from "@/utils/email-templates";
+import { log } from "@/lib/logger";
 
 const addSolutionSchema = z.object({
-  title: z.string().min(1, "Title is required").max(500, "Title too long"),
-  content: z.string().min(1, "Content is required").max(5000, "Content too long"),
+  title: z.string().min(1, "Title is required").max(150, "Title too long"),
+  content: z.string().min(1, "Content is required").max(500, "Content too long"),
 });
 
 export async function POST(
@@ -20,11 +21,14 @@ export async function POST(
     const session = await auth();
     
     if (!session?.user?.email) {
+      log('warn', 'Unauthorized solution creation attempt', undefined, false);
       return NextResponse.json(
         { success: false, message: "Unauthorized" },
         { status: 401 }
       );
     }
+
+    const sessionUserId = session.user.id;
 
     const questionId = parseInt(id);
     if (isNaN(questionId)) {
@@ -45,6 +49,7 @@ export async function POST(
       .limit(1);
 
     if (currentUser.length === 0) {
+      log('error', 'User not found for solution creation', sessionUserId, true);
       return NextResponse.json(
         { success: false, message: "User not found" },
         { status: 404 }
@@ -79,6 +84,9 @@ export async function POST(
 
     // Check if user is allowed to add solutions (must be in allowedEmails)
     if (!questionData.allowedEmails?.includes(session.user.email)) {
+      log('warn', 'Unauthorized solution creation - not in allowedEmails', sessionUserId, true, { 
+        questionId 
+      });
       return NextResponse.json(
         { success: false, message: "You are not authorized to add solutions to this question" },
         { status: 403 }
@@ -143,13 +151,15 @@ export async function POST(
             unsubscribeUrl: `${process.env.NEXTAUTH_URL || 'http://localhost:3000'}/unsubscribe?user=${questionOwner[0].uid}`
           });
         }
-      } catch (error) {
-        // Log notification email error but don't fail the solution creation
-        if (process.env.NODE_ENV === 'development') {
-          console.error("Failed to send solution notification email:", error);
-        }
+      } catch {
+        log('error', 'Failed to send solution notification email', sessionUserId, true, { questionId });
       }
     }
+
+    log('info', 'Solution added successfully', sessionUserId, true, { 
+      questionId, 
+      solutionId: newSolution[0].id 
+    });
 
     return NextResponse.json({
       success: true,
@@ -158,12 +168,8 @@ export async function POST(
     });
 
   } catch (error) {
-    // Add solution error logged in development only
-    if (process.env.NODE_ENV === 'development') {
-      console.error("Error adding solution:", error);
-    }
-    
     if (error instanceof z.ZodError) {
+      log('warn', 'Solution validation error', undefined, false);
       return NextResponse.json(
         {
           success: false,
@@ -172,6 +178,10 @@ export async function POST(
         { status: 400 }
       );
     }
+
+    log('error', 'Solution creation error', undefined, false, {
+      error: error instanceof Error ? error.message : 'Unknown error'
+    });
 
     return NextResponse.json(
       { success: false, message: "Internal server error" },
