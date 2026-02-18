@@ -28,7 +28,6 @@ import {
   Save,
   X,
   Trash2,
-  Share2,
   Copy,
   Check,
   ExternalLink,

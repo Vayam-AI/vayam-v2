@@ -3,7 +3,6 @@
 import Image from "next/image";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
-import { useRouter } from "next/router";
 
 export function LandingNavbar() {
     return (

@@ -10,7 +10,6 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { Mail, Lock, Eye, EyeOff, ArrowLeft } from "lucide-react";
-import { LoaderOne } from "@/components/ui/loader";
 import Loading from "@/components/ui/loading";
 import { GoogleAuthButton } from "@/components/auth/google-auth-button";
 import { InputOTP, InputOTPGroup, InputOTPSlot } from "@/components/ui/input-otp";

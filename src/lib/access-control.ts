@@ -1,6 +1,6 @@
 import { db } from "@/db/drizzle";
 import { organizations, users, accessLinks } from "@/db/schema";
-import { eq, and, or, isNull, gt } from "drizzle-orm";
+import { eq, and } from "drizzle-orm";
 import { UserType } from "@/types/vayam";
 
 /**

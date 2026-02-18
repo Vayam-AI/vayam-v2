@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth-options";
 import { db } from "@/db/drizzle";
-import { questionEmailTemplates, users, organizations } from "@/db/schema";
+import { questionEmailTemplates, users } from "@/db/schema";
 import { eq } from "drizzle-orm";
 import { isAdminUser } from "@/lib/admin";
 import { log } from "@/lib/logger";
@@ -50,7 +50,7 @@ export async function GET(
       },
       variables: ["{{name}}", "{{questionTitle}}", "{{inviteLink}}", "{{platformUrl}}"],
     });
-  } catch (error) {
+  } catch {
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
 }

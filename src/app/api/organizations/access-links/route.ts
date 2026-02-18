@@ -13,7 +13,7 @@ async function verifyOrgAdmin(email: string, organizationId: number) {
   const [user] = await db.select().from(users).where(eq(users.email, email)).limit(1);
   if (!user || !isAdminUser(user.role)) return null;
   const [org] = await db.select().from(organizations).where(
-    and(eq(organizations.id, organizationId), eq(organizations.adminUserId, user.id))
+    and(eq(organizations.id, organizationId), eq(organizations.adminUserId, user.uid))
   ).limit(1);
   return org ? user : null;
 }
@@ -87,7 +87,7 @@ export async function POST(req: NextRequest) {
 
     const result = await createAccessLink(
       organizationId,
-      admin.id,
+      admin.uid,
       {
         maxUsage: options?.maxUsage,
         expiresAt: options?.expiresAt ? new Date(options.expiresAt) : undefined,

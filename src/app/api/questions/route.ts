@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth-options";
 import { db } from "@/db/drizzle";
 import { questions, users, questionAccess, companyUsers, organizations } from "@/db/schema";
-import { eq, and, or, inArray } from "drizzle-orm";
+import { eq, inArray } from "drizzle-orm";
 import { isAdminUser } from "@/lib/admin";
 import { createQuestionSchema } from "@/validators/vayam";
 import { EmailNotifications } from "@/utils/email-templates";

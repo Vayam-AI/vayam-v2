@@ -2,8 +2,7 @@
 
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
-import { ArrowLeft, Mail, Linkedin } from "lucide-react";
-import Image from "next/image";
+import { Mail, Linkedin } from "lucide-react";
 import { toast } from "sonner";
 import { useState } from "react";
 import { LandingNavbar } from "@/components/landing-navbar";
@@ -144,7 +143,7 @@ export default function ContactPage() {
                     } else {
                       toast.error(data.error || "Failed to send message.");
                     }
-                  } catch (error) {
+                  } catch {
                     toast.error("Something went wrong. Please try again.");
                   } finally {
                     setIsSubmitting(false);

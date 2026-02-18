@@ -89,7 +89,6 @@ export const CreateQuestion = () => {
   };
 
   const onSubmit: SubmitHandler<FormData> = async (values) => {
-  const onSubmit: SubmitHandler<FormData> = async (values) => {
     try {
       setIsLoading(true);
 

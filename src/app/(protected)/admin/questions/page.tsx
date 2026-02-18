@@ -53,6 +53,7 @@ export default function AdminQuestionsDashboard() {
   const [dashboardLoading, setDashboardLoading] = useState(true);
   const [questions, setQuestions] = useState<Question[]>([]);
   const [selected, setSelected] = useState<Question | null>(null);
+  const [selectedId, setSelectedId] = useState<number | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [filteredQuestions, setFilteredQuestions] = useState<Question[]>([]);
 
@@ -103,7 +104,7 @@ export default function AdminQuestionsDashboard() {
     } finally {
       setDashboardLoading(false);
     }
-  }, [session?.user?.email]);
+  }, []);
 
   useEffect(() => {
     if (status === "loading") return;
@@ -141,6 +142,7 @@ export default function AdminQuestionsDashboard() {
 
   const handleSelect = (question: Question) => {
     setSelected(question);
+    setSelectedId(question.id);
     fetchAccessList(question.id);
   };
   const openCreateDialog = () => setShowCreateDialog(true);
@@ -170,6 +172,7 @@ export default function AdminQuestionsDashboard() {
   const handleQuestionDeleted = () => {
     fetchQuestions();
     setSelected(null);
+    setSelectedId(null);
   };
 
   if (status === "loading" || dashboardLoading) {
@@ -193,7 +196,7 @@ export default function AdminQuestionsDashboard() {
             <Button
               variant="ghost"
               size="sm"
-              onClick={() => setSelected(null)}
+              onClick={() => { setSelected(null); setSelectedId(null); }}
               className="mb-3 -ml-2 text-muted-foreground hover:text-foreground h-8 text-xs gap-1.5"
             >
               <ArrowLeft className="h-3.5 w-3.5" /> Back to Questions
@@ -273,7 +276,7 @@ export default function AdminQuestionsDashboard() {
                       key={question.id}
                       question={question}
                       onClick={() => handleSelect(question)}
-                      selected={selected?.id === question.id}
+                      selected={selectedId === question.id}
                       onEdit={openEditDialog}
                       onDelete={openDeleteDialog}
                       onShare={openShareDialog}

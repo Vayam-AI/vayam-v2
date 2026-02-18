@@ -65,7 +65,6 @@ export function QuestionAccessDialog({
   const PAGE_SIZE = 10;
 
   // Batch tracking for real-time progress
-  const [batchId, setBatchId] = useState<string | null>(null);
   const [batchStatus, setBatchStatus] = useState<{
     total: number;
     completed: number;
@@ -156,9 +155,8 @@ export function QuestionAccessDialog({
 
   const handleSendInvites = async () => {
     if (!questionId) return;
-    setSendingInvites(true);
-    setBatchStatus(null);
-    setBatchId(null);
+  setSendingInvites(true);
+  setBatchStatus(null);
 
     // Clear any previous polling
     if (pollRef.current) {
@@ -182,7 +180,6 @@ export function QuestionAccessDialog({
       toast.success(`${count} invite(s) queued — tracking progress…`);
 
       if (newBatchId) {
-        setBatchId(newBatchId);
         setBatchStatus({
           total: count,
           completed: 0,
@@ -256,7 +253,6 @@ export function QuestionAccessDialog({
       clearInterval(pollRef.current);
       pollRef.current = null;
       setBatchStatus(null);
-      setBatchId(null);
       setSendingInvites(false);
     }
   }, [open]);
