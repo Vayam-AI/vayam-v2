@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth-options";
 import { db } from "@/db/drizzle";
-import { questions, solutions, users, participants } from "@/db/schema";
-import { eq } from "drizzle-orm";
+import { questions, solutions, users, participants, questionAccess, companyUsers } from "@/db/schema";
+import { eq, and, inArray } from "drizzle-orm";
 import { z } from "zod";
 import { EmailNotifications } from "@/utils/email-templates";
 import { log } from "@/lib/logger";
@@ -82,9 +82,35 @@ export async function POST(
       );
     }
 
-    // Check if user is allowed to add solutions (must be in allowedEmails)
-    if (!questionData.allowedEmails?.includes(session.user.email)) {
-      log('warn', 'Unauthorized solution creation - not in allowedEmails', sessionUserId, true, { 
+    // Check if user is allowed to add solutions
+    // Access = in allowedEmails OR has explicit questionAccess entry OR is the owner
+    const userEmailLower = session.user.email!.toLowerCase();
+    const inAllowedEmails = questionData.allowedEmails?.map((e: string) => e.toLowerCase()).includes(userEmailLower);
+    const isOwner = questionData.owner === userId;
+
+    let hasQuestionAccess = false;
+    if (!inAllowedEmails && !isOwner) {
+      try {
+        const cuRows = await db
+          .select({ id: companyUsers.id })
+          .from(companyUsers)
+          .where(eq(companyUsers.email, userEmailLower));
+        if (cuRows.length > 0) {
+          const cuIds = cuRows.map((r) => r.id);
+          const accessRows = await db
+            .select({ questionId: questionAccess.questionId })
+            .from(questionAccess)
+            .where(and(
+              eq(questionAccess.questionId, questionId),
+              inArray(questionAccess.companyUserId, cuIds)
+            ));
+          hasQuestionAccess = accessRows.length > 0;
+        }
+      } catch { /* ignore */ }
+    }
+
+    if (!inAllowedEmails && !hasQuestionAccess && !isOwner) {
+      log('warn', 'Unauthorized solution creation - no access', sessionUserId, true, { 
         questionId 
       });
       return NextResponse.json(

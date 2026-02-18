@@ -32,6 +32,8 @@ function SignUpPageContent() {
   const redirectTo = searchParams.get("redirect") || "/dashboard";
   
   const [isLoading, setIsLoading] = useState(false);
+  const [isVerifying, setIsVerifying] = useState(false);
+  const [isResending, setIsResending] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [currentStep, setCurrentStep] = useState<"signup" | "verify">("signup");
@@ -103,7 +105,7 @@ function SignUpPageContent() {
   };
 
   const onOtpSubmit = async (data: OTPVerificationData) => {
-    setIsLoading(true);
+    setIsVerifying(true);
 
     try {
       await axios.post('/api/auth/verify-otp', {
@@ -151,12 +153,12 @@ function SignUpPageContent() {
         toast.error("An unexpected error occurred during verification.");
       }
     } finally {
-      setIsLoading(false);
+      setIsVerifying(false);
     }
   };
 
   const handleResendOTP = async () => {
-    setIsLoading(true);
+    setIsResending(true);
 
     try {
       await axios.post('/api/auth/send-otp', {
@@ -193,7 +195,7 @@ function SignUpPageContent() {
         toast.error("An unexpected error occurred while sending the code.");
       }
     } finally {
-      setIsLoading(false);
+      setIsResending(false);
     }
   };
 
@@ -413,15 +415,9 @@ function SignUpPageContent() {
                   <Button 
                     type="submit" 
                     className="w-full h-11 text-base font-medium transition-all duration-200 hover:shadow-md" 
-                    disabled={isLoading}
+                    disabled={isVerifying || isResending}
                   >
-                    {isLoading ? (
-                      <>
-                        <LoaderOne />
-                      </>
-                    ) : (
-                      "Verify Email"
-                    )}
+                    {isVerifying ? "Verifying\u2026" : "Verify Email"}
                   </Button>
                 </form>
 
@@ -431,20 +427,16 @@ function SignUpPageContent() {
                     variant="outline"
                     className="w-full h-11 text-base font-medium"
                     onClick={handleResendOTP}
-                    disabled={isLoading}
+                    disabled={isVerifying || isResending}
                   >
-                    {isLoading ? (
-                      <LoaderOne />
-                    ) : (
-                      "Resend Code"
-                    )}
+                    {isResending ? "Resending\u2026" : "Resend Code"}
                   </Button>
                 </div>
               </div>
             </>
           )}
 
-          <div className="text-center">
+          <div className="text-center space-y-2">
             <p className="text-sm text-muted-foreground">
               Already have an account?{" "}
               <Link 
@@ -452,6 +444,15 @@ function SignUpPageContent() {
                 className="text-primary hover:text-primary/80 font-medium underline-offset-4 hover:underline transition-colors"
               >
                 Sign in
+              </Link>
+            </p>
+            <p className="text-sm text-muted-foreground">
+              Want to register your company?{" "}
+              <Link 
+                href="/admin-signup" 
+                className="text-primary hover:text-primary/80 font-medium underline-offset-4 hover:underline transition-colors"
+              >
+                Admin Sign Up
               </Link>
             </p>
           </div>

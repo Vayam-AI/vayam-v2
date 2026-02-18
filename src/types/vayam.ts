@@ -1,11 +1,50 @@
 // Type definitions for the Vayam platform
+
+// Access Control Types
+export type UserType = "regular" | "private_domain" | "private_whitelist" | "link_qr";
+export type AccessMethod = "link_qr" | "domain" | "whitelist";
+export type LinkAccessType = "public_link" | "qr_code";
+
+export interface Organization {
+  id: number;
+  name: string;
+  domain?: string | null;
+  accessLink?: string | null;
+  whitelistedEmails: string[];
+  adminUserId?: number | null;
+  isActive: boolean;
+  isLinkAccessEnabled: boolean;
+  accessLinkExpiresAt?: Date | null;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+export interface AccessLink {
+  id: number;
+  organizationId: number;
+  token: string;
+  accessType: "public_link" | "qr_code";
+  usageCount: number;
+  maxUsage?: number | null;
+  isActive: boolean;
+  expiresAt?: Date | null;
+  createdByUserId?: number | null;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
 export interface User {
   uid: number;
   username?: string | null;
   email: string;
+  personalEmail?: string | null;
   pwhash?: string;
   provider: string;
   isEmailVerified: boolean;
+  userType: UserType;
+  accessLinkUsed?: string | null;
+  organizationId?: number | null;
+  isOrgAdmin: boolean;
   createdAt: Date;
 }
 
@@ -20,6 +59,7 @@ export interface Question {
   owner: number; // Admin user ID
   isActive: boolean;
   isPublic: boolean;
+  organizationId?: number | null;
   logos: string[];
   infoImages: string[];
   createdAt: string;
@@ -136,8 +176,26 @@ export interface CreateQuestionRequest {
   tags?: string[];
   allowedEmails?: string[];
   isPublic?: boolean;
+  organizationId?: number;
   logos?: string[];
   infoImages?: string[];
+}
+
+export interface CreateOrganizationRequest {
+  name: string;
+  domain?: string;
+  whitelistedEmails?: string[];
+  accessMethod: AccessMethod;
+}
+
+export interface UpdatePersonalEmailRequest {
+  personalEmail: string;
+}
+
+export interface ValidateAccessRequest {
+  email: string;
+  accessLink?: string;
+  organizationId?: number;
 }
 
 export interface CreateSolutionRequest {

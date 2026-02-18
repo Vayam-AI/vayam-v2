@@ -6,9 +6,6 @@
 @import url('https://fonts.googleapis.com/css2?family=Nunito+Sans:ital,opsz,wght@0,6..12,200..1000;1,6..12,200..1000&display=swap');
 @import url('https://fonts.googleapis.com/css2?family=Noto+Serif:ital,wght@0,100..900;1,100..900&display=swap');
 @import url('https://fonts.googleapis.com/css2?family=PT+Serif:ital,wght@0,400;0,700;1,400;1,700&display=swap');
-@import url('https://fonts.googleapis.com/css2?family=Birthstone&display=swap');
-
-
 
 @import "tailwindcss";
 @import "tw-animate-css";
@@ -41,10 +38,6 @@
 
 .font-pt-serif {
   font-family: var(--font-pt-serif) !important;
-}
-
-.font-birthstone {
-  font-family: var(--font-birthstone) !important;
 }
 
 :root {
@@ -109,7 +102,6 @@
   --font-nunito-sans: "Nunito Sans", sans-serif;
   --font-noto-serif:"Noto Serif", serif;
   --font-pt-serif: "PT Serif";
-  --font-birthstone: "Birthstone", cursive;
   --radius: 0.625rem;
   --shadow-x: 0;
   --shadow-y: 1px;

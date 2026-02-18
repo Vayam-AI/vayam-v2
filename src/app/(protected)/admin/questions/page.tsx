@@ -18,14 +18,19 @@ import {
   ArrowLeft,
   Activity,
   Clock,
-  Mail,
   Trash2,
+  Share2,
+  Eye,
+  Mail,
+  Shield,
 } from "lucide-react";
 import { LoaderOne } from "@/components/ui/loader";
 import { isAdminUser } from "@/lib/admin";
 import { toast } from "sonner";
 import { QuestionCard } from "@/components/admin/question-card";
 import { QuestionDialogs } from "@/components/admin/question-dialogs";
+import { QuestionAccessDialog } from "@/components/admin/question-access-dialog";
+import { EmailTemplateDialog } from "@/components/admin/email-template-dialog";
 
 interface Question {
   id: number;
@@ -51,35 +56,31 @@ export default function AdminQuestionsDashboard() {
   const [searchQuery, setSearchQuery] = useState("");
   const [filteredQuestions, setFilteredQuestions] = useState<Question[]>([]);
 
-  // CRUD dialog state
   const [showCreateDialog, setShowCreateDialog] = useState(false);
   const [showEditDialog, setShowEditDialog] = useState(false);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
-  const [showInviteDialog, setShowInviteDialog] = useState(false);
   const [questionToEdit, setQuestionToEdit] = useState<Question | null>(null);
-  const [questionToDelete, setQuestionToDelete] = useState<Question | null>(
-    null
-  );
-  const [questionToInvite, setQuestionToInvite] = useState<Question | null>(
-    null
-  );
+  const [questionToDelete, setQuestionToDelete] = useState<Question | null>(null);
+  const [showShareDialog, setShowShareDialog] = useState(false);
+  const [questionToShare, setQuestionToShare] = useState<Question | null>(null);
+  const [showAccessDialog, setShowAccessDialog] = useState(false);
+  const [questionForAccess, setQuestionForAccess] = useState<Question | null>(null);
+  const [showTemplateDialog, setShowTemplateDialog] = useState(false);
+  const [questionForTemplate, setQuestionForTemplate] = useState<Question | null>(null);
+  const [accessEmails, setAccessEmails] = useState<{ email: string; name: string; department: string | null; inviteStatus: string }[]>([]);
+  const [accessLoading, setAccessLoading] = useState(false);
 
-  const isAdmin = isAdminUser(session?.user?.email);
+  const isAdmin = isAdminUser(session?.user?.role);
 
-  // Filter questions based on search query - show all questions including inactive ones
   useEffect(() => {
     if (!searchQuery.trim()) {
       setFilteredQuestions(questions);
     } else {
       const filtered = questions.filter(
-        (question) =>
-          question.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-          question.description
-            .toLowerCase()
-            .includes(searchQuery.toLowerCase()) ||
-          question.tags?.some((tag) =>
-            tag.toLowerCase().includes(searchQuery.toLowerCase())
-          )
+        (q) =>
+          q.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+          q.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
+          q.tags?.some((t) => t.toLowerCase().includes(searchQuery.toLowerCase()))
       );
       setFilteredQuestions(filtered);
     }
@@ -91,14 +92,8 @@ export default function AdminQuestionsDashboard() {
       const response = await axios.get("/api/questions");
       if (response.data.success) {
         const allQuestions = response.data.data || [];
-
-        // Filter questions to show only those created by the current admin
-        const adminQuestions = allQuestions.filter(
-          (question: Question) => question.ownerEmail === session?.user?.email
-        );
-
-        setQuestions(adminQuestions);
-        setFilteredQuestions(adminQuestions);
+        setQuestions(allQuestions);
+        setFilteredQuestions(allQuestions);
       }
     } catch (error) {
       console.error("Error fetching questions:", error);
@@ -112,62 +107,69 @@ export default function AdminQuestionsDashboard() {
 
   useEffect(() => {
     if (status === "loading") return;
-
     if (status === "unauthenticated") {
       router.replace("/signin");
       return;
     }
-
     if (status === "authenticated" && !isAdmin) {
       router.replace("/dashboard");
       return;
     }
-
-    if (status === "authenticated" && isAdmin) {
-      fetchQuestions();
-    }
+    if (status === "authenticated" && isAdmin) fetchQuestions();
   }, [status, isAdmin, router, fetchQuestions]);
+
+  // Fetch full access list from questionAccess table
+  const fetchAccessList = useCallback(async (questionId: number) => {
+    setAccessLoading(true);
+    try {
+      const res = await axios.get(`/api/admin/questions/${questionId}/access`);
+      const data = res.data.data || [];
+      setAccessEmails(
+        data.map((a: { companyUser: { email: string; name: string; department: string | null }; inviteStatus: string }) => ({
+          email: a.companyUser.email,
+          name: a.companyUser.name,
+          department: a.companyUser.department,
+          inviteStatus: a.inviteStatus,
+        }))
+      );
+    } catch {
+      setAccessEmails([]);
+    } finally {
+      setAccessLoading(false);
+    }
+  }, []);
 
   const handleSelect = (question: Question) => {
     setSelected(question);
+    fetchAccessList(question.id);
   };
-
-  // Dialog handlers
-  const openCreateDialog = () => {
-    setShowCreateDialog(true);
-  };
-
+  const openCreateDialog = () => setShowCreateDialog(true);
   const openEditDialog = (question: Question) => {
     setQuestionToEdit(question);
     setShowEditDialog(true);
   };
-
   const openDeleteDialog = (question: Question) => {
     setQuestionToDelete(question);
     setShowDeleteDialog(true);
   };
-
-  const openInviteDialog = (question: Question) => {
-    setQuestionToInvite(question);
-    setShowInviteDialog(true);
+  const openShareDialog = (question: Question) => {
+    setQuestionToShare(question);
+    setShowShareDialog(true);
+  };
+  const openAccessDialog = (question: Question) => {
+    setQuestionForAccess(question);
+    setShowAccessDialog(true);
+  };
+  const openTemplateDialog = (question: Question) => {
+    setQuestionForTemplate(question);
+    setShowTemplateDialog(true);
   };
 
-  // Callback handlers for when operations complete
-  const handleQuestionCreated = () => {
-    fetchQuestions();
-  };
-
-  const handleQuestionUpdated = () => {
-    fetchQuestions();
-  };
-
+  const handleQuestionCreated = () => fetchQuestions();
+  const handleQuestionUpdated = () => fetchQuestions();
   const handleQuestionDeleted = () => {
     fetchQuestions();
-    setSelected(null); // Clear selected if it was deleted
-  };
-
-  const handleInvitesSent = () => {
-    fetchQuestions();
+    setSelected(null);
   };
 
   if (status === "loading" || dashboardLoading) {
@@ -177,269 +179,340 @@ export default function AdminQuestionsDashboard() {
       </div>
     );
   }
-
-  if (status === "unauthenticated") {
-    return null;
-  }
-
-  if (!isAdmin) {
-    return null;
-  }
+  if (status === "unauthenticated" || !isAdmin) return null;
 
   return (
-    <div className="h-full bg-background">
-      <div className="container mx-auto px-4 py-6 sm:py-8 h-full">
-        <div className="max-w-7xl mx-auto h-full">
-          {/* Header */}
-          <motion.div
-            initial={{ opacity: 0, y: -20 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="mb-8"
-          >
-            {selected && (
+    <div className="p-6 lg:p-8">
+      <div className="max-w-6xl mx-auto space-y-6">
+        {/* Header */}
+        <motion.div
+          initial={{ opacity: 0, y: -10 }}
+          animate={{ opacity: 1, y: 0 }}
+        >
+          {selected && (
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setSelected(null)}
+              className="mb-3 -ml-2 text-muted-foreground hover:text-foreground h-8 text-xs gap-1.5"
+            >
+              <ArrowLeft className="h-3.5 w-3.5" /> Back to Questions
+            </Button>
+          )}
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div>
+              <h1 className="text-2xl font-semibold text-foreground tracking-tight">
+                {selected ? selected.title : "Questions"}
+              </h1>
+              <p className="text-sm text-muted-foreground mt-1">
+                {selected
+                  ? "Manage this question's settings and access"
+                  : "Create, manage, and share your questions."}
+              </p>
+            </div>
+            {!selected && (
               <Button
-                variant="ghost"
-                onClick={() => setSelected(null)}
-                className="mb-4 text-muted-foreground hover:text-foreground transition-all duration-200"
+                onClick={openCreateDialog}
+                size="sm"
+                className="h-9 gap-1.5 shrink-0"
               >
-                <ArrowLeft className="mr-2 h-4 w-4" />
-                Back to Questions Dashboard
+                <Plus className="h-3.5 w-3.5" /> New Question
               </Button>
             )}
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-              <div>
-                <h1 className="text-2xl lg:text-3xl font-bold text-foreground">
-                  {selected ? selected.title : "Admin Questions Dashboard"}
-                </h1>
-                <p className="text-muted-foreground">
-                  {selected
-                    ? "Manage this question"
-                    : "Manage all questions and their settings"}
-                </p>
+          </div>
+        </motion.div>
+
+        {!selected ? (
+          <>
+            {/* Search */}
+            {questions.length > 0 && (
+              <div className="relative max-w-sm">
+                <MessageSquare className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input
+                  placeholder="Search questions..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="pl-9 h-9"
+                />
               </div>
-              {!selected && (
-                <Button
-                  onClick={openCreateDialog}
-                  className="flex items-center gap-2 shrink-0"
-                >
-                  <Plus className="h-4 w-4" />
-                  <span className="hidden sm:inline">Create New Question</span>
-                  <span className="sm:hidden">Create</span>
-                </Button>
-              )}
+            )}
+
+            {/* Questions Grid */}
+            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+              <AnimatePresence>
+                {filteredQuestions.length === 0 ? (
+                  <motion.div
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    className="col-span-full flex flex-col items-center justify-center py-16 text-center"
+                  >
+                    <MessageSquare className="h-10 w-10 text-muted-foreground/30 mb-3" />
+                    <h3 className="text-base font-medium text-foreground mb-1">
+                      {searchQuery
+                        ? "No matching questions"
+                        : "No questions yet"}
+                    </h3>
+                    <p className="text-sm text-muted-foreground mb-4">
+                      {searchQuery
+                        ? "Try adjusting your search terms"
+                        : "Get started by creating your first question"}
+                    </p>
+                    {!searchQuery && (
+                      <Button
+                        onClick={openCreateDialog}
+                        size="sm"
+                        className="gap-1.5"
+                      >
+                        <Plus className="h-3.5 w-3.5" /> Create Question
+                      </Button>
+                    )}
+                  </motion.div>
+                ) : (
+                  filteredQuestions.map((question) => (
+                    <QuestionCard
+                      key={question.id}
+                      question={question}
+                      onClick={() => handleSelect(question)}
+                      selected={selected?.id === question.id}
+                      onEdit={openEditDialog}
+                      onDelete={openDeleteDialog}
+                      onShare={openShareDialog}
+                      onManageAccess={openAccessDialog}
+                      onEmailTemplate={openTemplateDialog}
+                    />
+                  ))
+                )}
+              </AnimatePresence>
             </div>
-          </motion.div>
+          </>
+        ) : (
+          /* Detail View */
+          <motion.div
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="space-y-4"
+          >
+            {/* Status badges */}
+            <div className="flex items-center gap-2 flex-wrap">
+              <Badge
+                variant={selected.isActive ? "default" : "secondary"}
+                className="text-xs font-normal gap-1"
+              >
+                <Activity className="h-3 w-3" />
+                {selected.isActive ? "Active" : "Inactive"}
+              </Badge>
+              <Badge variant="outline" className="text-xs font-normal gap-1">
+                <Eye className="h-3 w-3" /> Private
+              </Badge>
+              <Badge variant="outline" className="text-xs font-normal gap-1">
+                <Clock className="h-3 w-3" />
+                {new Date(selected.createdAt).toLocaleDateString()}
+              </Badge>
+            </div>
 
-          {!selected ? (
-            <>
-              {/* Search Bar */}
-              {filteredQuestions.length > 0 && (
-                <motion.div
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: 0.2 }}
-                  className="mb-6"
-                >
-                  <Input
-                    placeholder="Search questions by title, description, or tags..."
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                    className="max-w-md"
-                  />
-                </motion.div>
-              )}
-              {/* Questions Grid */}
-              <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-                <AnimatePresence>
-                  {filteredQuestions.length === 0 ? (
-                    <motion.div
-                      initial={{ opacity: 0 }}
-                      animate={{ opacity: 1 }}
-                      exit={{ opacity: 0 }}
-                      className="col-span-full flex flex-col items-center justify-center py-12 text-center"
-                    >
-                      <MessageSquare className="h-12 w-12 text-muted-foreground mb-4" />
-                      <h3 className="text-lg font-semibold text-foreground mb-2">
-                        No questions found
-                      </h3>
-                      <p className="text-muted-foreground mb-4">
-                        {searchQuery
-                          ? "Try adjusting your search terms"
-                          : "Get started by creating your first question"}
-                      </p>
-                      {!searchQuery && (
-                        <Button
-                          onClick={openCreateDialog}
-                          className="flex items-center gap-2"
-                        >
-                          <Plus className="h-4 w-4" />
-                          Create Question
-                        </Button>
-                      )}
-                    </motion.div>
-                  ) : (
-                    filteredQuestions.map((question) => {
-                      const selectedQuestion = selected as Question | null;
-                      const isSelected = selectedQuestion
-                        ? selectedQuestion.id === question.id
-                        : false;
-                      return (
-                        <QuestionCard
-                          key={question.id}
-                          question={question}
-                          onClick={() => handleSelect(question)}
-                          selected={isSelected}
-                          onEdit={openEditDialog}
-                          onDelete={openDeleteDialog}
-                          onInvite={openInviteDialog}
-                        />
-                      );
-                    })
-                  )}
-                </AnimatePresence>
-              </div>
-            </>
-          ) : (
-            /* Selected Question Detail View */
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              className="max-w-4xl mx-auto"
-            >
-              <Card className="border-border/50 shadow-sm">
-                <CardContent className="p-6 lg:p-8">
-                  <div className="space-y-6">
-                    <div>
-                      <p className="text-sm text-muted-foreground mb-2">
-                        Question Description
-                      </p>
-                      <p className="text-foreground leading-relaxed break-words whitespace-pre-wrap overflow-hidden">
-                        {selected.description}
-                      </p>
-                    </div>
+            {/* Description */}
+            <Card className="border-border/40">
+              <CardContent className="p-5">
+                <h3 className="text-xs font-medium uppercase tracking-wider text-muted-foreground mb-2">
+                  Description
+                </h3>
+                <p className="text-sm text-foreground leading-relaxed whitespace-pre-wrap">
+                  {selected.description}
+                </p>
+              </CardContent>
+            </Card>
 
-                    {selected.tags && selected.tags.length > 0 && (
-                      <div>
-                        <p className="text-sm text-muted-foreground mb-2">
-                          Tags
-                        </p>
-                        <div className="flex flex-wrap gap-2">
-                          {selected.tags.map((tag) => (
-                            <Badge
-                              key={tag}
-                              variant="outline"
-                              className="bg-muted/50 border-border/50"
-                            >
-                              {tag}
-                            </Badge>
-                          ))}
-                        </div>
-                      </div>
-                    )}
-
-                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-                      <div className="text-center p-4 bg-muted/30 rounded-xl">
-                        <Users className="h-6 w-6 text-primary mx-auto mb-2" />
-                        <p className="text-2xl font-bold text-foreground">
-                          {selected.participantCount}
-                        </p>
-                        <p className="text-sm text-muted-foreground">
-                          Participants
-                        </p>
-                      </div>
-                      <div className="text-center p-4 bg-muted/30 rounded-xl">
-                        <Clock className="h-6 w-6 text-muted-foreground mx-auto mb-2" />
-                        <p className="text-sm font-bold text-foreground">
-                          {new Date(selected.createdAt).toLocaleDateString()}
-                        </p>
-                        <p className="text-sm text-muted-foreground">Created</p>
-                      </div>
-                      <div className="text-center p-4 bg-muted/30 rounded-xl">
-                        <p className="text-sm font-bold text-foreground">
-                          Private
-                        </p>
-                        <p className="text-sm text-muted-foreground">
-                          Visibility
-                        </p>
-                      </div>
-                      <div className="text-center p-4 bg-muted/30 rounded-xl">
-                        {selected.isActive ? (
-                          <Activity className="h-6 w-6 text-green-600 mx-auto mb-2" />
-                        ) : (
-                          <Activity className="h-6 w-6 text-red-500 mx-auto mb-2" />
-                        )}
-                        <p className="text-sm font-bold text-foreground">
-                          {selected.isActive ? "Active" : "Inactive"}
-                        </p>
-                        <p className="text-sm text-muted-foreground">Status</p>
-                      </div>
-                    </div>
-
-                    {selected.allowedEmails.length > 0 && (
-                      <div className="mt-4 p-4 bg-muted/30 rounded-xl">
-                        <h4 className="font-medium text-foreground mb-2">
-                          SME Access List:
-                        </h4>
-                        <div className="flex flex-wrap gap-2">
-                          {selected.allowedEmails.map((email: string) => (
-                            <Badge key={email} variant="secondary">
-                              {email}
-                            </Badge>
-                          ))}
-                        </div>
-                      </div>
-                    )}
-
-                    <div className="flex gap-2 pt-4">
-                      <Button
-                        onClick={() => openEditDialog(selected)}
-                        className="flex items-center gap-2"
+            {/* Tags */}
+            {selected.tags && selected.tags.length > 0 && (
+              <Card className="border-border/40">
+                <CardContent className="p-5">
+                  <h3 className="text-xs font-medium uppercase tracking-wider text-muted-foreground mb-2">
+                    Tags
+                  </h3>
+                  <div className="flex flex-wrap gap-1.5">
+                    {selected.tags.map((tag) => (
+                      <Badge
+                        key={tag}
+                        variant="secondary"
+                        className="text-xs font-normal"
                       >
-                        <Edit className="h-4 w-4" />
-                        Edit Question
-                      </Button>
-                      <Button
-                        variant="outline"
-                        onClick={() => openInviteDialog(selected)}
-                        className="flex items-center gap-2"
-                      >
-                        <Mail className="h-4 w-4" />
-                        Invite SMEs
-                      </Button>
-                      <Button
-                        variant="destructive"
-                        onClick={() => openDeleteDialog(selected)}
-                        className="flex items-center gap-2"
-                      >
-                        <Trash2 className="h-4 w-4" />
-                        Delete
-                      </Button>
-                    </div>
+                        {tag}
+                      </Badge>
+                    ))}
                   </div>
                 </CardContent>
               </Card>
-            </motion.div>
-          )}
+            )}
 
-          {/* Question Dialogs */}
-          <QuestionDialogs
-            showCreateDialog={showCreateDialog}
-            setShowCreateDialog={setShowCreateDialog}
-            showEditDialog={showEditDialog}
-            setShowEditDialog={setShowEditDialog}
-            questionToEdit={questionToEdit}
-            showDeleteDialog={showDeleteDialog}
-            setShowDeleteDialog={setShowDeleteDialog}
-            questionToDelete={questionToDelete}
-            showInviteDialog={showInviteDialog}
-            setShowInviteDialog={setShowInviteDialog}
-            questionToInvite={questionToInvite}
-            onQuestionCreated={handleQuestionCreated}
-            onQuestionUpdated={handleQuestionUpdated}
-            onQuestionDeleted={handleQuestionDeleted}
-            onInvitesSent={handleInvitesSent}
-          />
-        </div>
+            {/* Stats */}
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
+              <Card className="border-border/40">
+                <CardContent className="p-4 flex items-center gap-3">
+                  <div className="p-2 rounded-lg bg-blue-500/10">
+                    <Users className="h-4 w-4 text-blue-600" />
+                  </div>
+                  <div>
+                    <p className="text-xl font-semibold">
+                      {selected.participantCount}
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                      Participants
+                    </p>
+                  </div>
+                </CardContent>
+              </Card>
+              <Card className="border-border/40">
+                <CardContent className="p-4 flex items-center gap-3">
+                  <div className="p-2 rounded-lg bg-green-500/10">
+                    <Shield className="h-4 w-4 text-green-600" />
+                  </div>
+                  <div>
+                    <p className="text-xl font-semibold">
+                      {accessLoading ? "…" : accessEmails.length}
+                    </p>
+                    <p className="text-xs text-muted-foreground">Access List</p>
+                  </div>
+                </CardContent>
+              </Card>
+              <Card className="border-border/40 col-span-2 sm:col-span-1">
+                <CardContent className="p-4 flex items-center gap-3">
+                  <div className="p-2 rounded-lg bg-purple-500/10">
+                    <Mail className="h-4 w-4 text-purple-600" />
+                  </div>
+                  <div>
+                    <p className="text-sm font-medium truncate">
+                      {selected.ownerEmail}
+                    </p>
+                    <p className="text-xs text-muted-foreground">Owner</p>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+
+            {/* Access List */}
+            {accessLoading ? (
+              <Card className="border-border/40">
+                <CardContent className="p-5 flex items-center justify-center">
+                  <LoaderOne />
+                </CardContent>
+              </Card>
+            ) : accessEmails.length > 0 ? (
+              <Card className="border-border/40">
+                <CardContent className="p-5">
+                  <h3 className="text-xs font-medium uppercase tracking-wider text-muted-foreground mb-3">
+                    Access List ({accessEmails.length})
+                  </h3>
+                  <div className="divide-y divide-border/40">
+                    {accessEmails.map((entry) => (
+                      <div
+                        key={entry.email}
+                        className="flex items-center justify-between py-2 first:pt-0 last:pb-0"
+                      >
+                        <div className="min-w-0">
+                          <p className="text-sm font-medium truncate">{entry.name}</p>
+                          <p className="text-xs text-muted-foreground truncate">{entry.email}</p>
+                        </div>
+                        <div className="flex items-center gap-1.5 shrink-0 ml-3">
+                          {entry.department && (
+                            <Badge variant="outline" className="text-[10px] px-1.5 py-0 h-5">
+                              {entry.department}
+                            </Badge>
+                          )}
+                          <Badge
+                            variant={entry.inviteStatus === "accepted" ? "default" : "secondary"}
+                            className="text-[10px] px-1.5 py-0 h-5"
+                          >
+                            {entry.inviteStatus}
+                          </Badge>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </CardContent>
+              </Card>
+            ) : null}
+
+            {/* Action Buttons */}
+            <div className="flex gap-2 pt-2 flex-wrap">
+              <Button
+                size="sm"
+                onClick={() => openEditDialog(selected)}
+                className="h-9 gap-1.5"
+              >
+                <Edit className="h-3.5 w-3.5" /> Edit
+              </Button>
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => openAccessDialog(selected)}
+                className="h-9 gap-1.5"
+              >
+                <Users className="h-3.5 w-3.5" /> Manage Access
+              </Button>
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => openTemplateDialog(selected)}
+                className="h-9 gap-1.5"
+              >
+                <Mail className="h-3.5 w-3.5" /> Email Template
+              </Button>
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => openShareDialog(selected)}
+                className="h-9 gap-1.5"
+              >
+                <Share2 className="h-3.5 w-3.5" /> Share
+              </Button>
+              <Button
+                size="sm"
+                variant="destructive"
+                onClick={() => openDeleteDialog(selected)}
+                className="h-9 gap-1.5"
+              >
+                <Trash2 className="h-3.5 w-3.5" /> Delete
+              </Button>
+            </div>
+          </motion.div>
+        )}
+
+        {/* Dialogs */}
+        <QuestionDialogs
+          showCreateDialog={showCreateDialog}
+          setShowCreateDialog={setShowCreateDialog}
+          showEditDialog={showEditDialog}
+          setShowEditDialog={setShowEditDialog}
+          questionToEdit={questionToEdit}
+          showDeleteDialog={showDeleteDialog}
+          setShowDeleteDialog={setShowDeleteDialog}
+          questionToDelete={questionToDelete}
+          showShareDialog={showShareDialog}
+          setShowShareDialog={setShowShareDialog}
+          questionToShare={questionToShare}
+          adminEmail={session?.user?.email || ""}
+          onQuestionCreated={handleQuestionCreated}
+          onQuestionUpdated={handleQuestionUpdated}
+          onQuestionDeleted={handleQuestionDeleted}
+        />
+        <QuestionAccessDialog
+          open={showAccessDialog}
+          onOpenChange={(open) => {
+            setShowAccessDialog(open);
+            // Refresh access list when dialog closes and a question is selected
+            if (!open && selected) {
+              fetchAccessList(selected.id);
+            }
+          }}
+          questionId={questionForAccess?.id ?? null}
+          questionTitle={questionForAccess?.title}
+        />
+        <EmailTemplateDialog
+          open={showTemplateDialog}
+          onOpenChange={setShowTemplateDialog}
+          questionId={questionForTemplate?.id ?? null}
+          questionTitle={questionForTemplate?.title}
+        />
       </div>
     </div>
   );

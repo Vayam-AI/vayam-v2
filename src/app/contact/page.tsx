@@ -2,21 +2,26 @@
 
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
-import {  Mail, Linkedin } from "lucide-react";
-import LandingNavbar from "@/components/landing-navbar";
+import { ArrowLeft, Mail, Linkedin } from "lucide-react";
+import Image from "next/image";
+import { toast } from "sonner";
+import { useState } from "react";
+import { LandingNavbar } from "@/components/landing-navbar";
 
 export default function ContactPage() {
+  const [isSubmitting, setIsSubmitting] = useState(false);
   return (
     <div className="min-h-screen bg-[#0a0a0a] text-white relative overflow-hidden">
+
+      {/* Navigation */}
+      <LandingNavbar />
+
       {/* Starfield Background */}
-      <div className="absolute inset-0 overflow-hidden">
+      <div className="absolute inset-0 overflow-hidden z-0">
         <div className="stars-small"></div>
         <div className="stars-medium"></div>
         <div className="stars-large"></div>
       </div>
-
-      {/* Navigation */}
-      <LandingNavbar />
 
       {/* Main Content */}
       <main className="relative z-10">
@@ -24,7 +29,7 @@ export default function ContactPage() {
           <div className="max-w-5xl mx-auto space-y-16">
             {/* Hero Section */}
             <section className="text-center space-y-4">
-              <h1 className="text-3xl sm:text-4xl lg:text-5xl font-bold leading-tight">
+              <h1 className="text-4xl sm:text-5xl lg:text-6xl font-bold leading-tight">
                 Can we <span className="text-[#ff4f0f]">ideate together</span> ?
               </h1>
             </section>
@@ -110,6 +115,80 @@ export default function ContactPage() {
                 </a>
               </div>
             </section>
+
+            {/* Contact Form Section */}
+            <section className="space-y-8">
+              <h2 className="text-3xl sm:text-4xl font-bold text-center">
+                Share your <span className="text-[#ff4f0f]">Thoughts</span>
+              </h2>
+
+              <form
+                onSubmit={async (e) => {
+                  e.preventDefault();
+                  setIsSubmitting(true);
+                  const form = e.currentTarget;
+                  const email = (form.elements.namedItem("email") as HTMLInputElement).value;
+                  const description = (form.elements.namedItem("message") as HTMLTextAreaElement).value;
+
+                  try {
+                    const res = await fetch("/api/contact", {
+                      method: "POST",
+                      headers: { "Content-Type": "application/json" },
+                      body: JSON.stringify({ email, description }),
+                    });
+
+                    const data = await res.json();
+                    if (res.ok) {
+                      toast.success("Message sent successfully!");
+                      form.reset();
+                    } else {
+                      toast.error(data.error || "Failed to send message.");
+                    }
+                  } catch (error) {
+                    toast.error("Something went wrong. Please try again.");
+                  } finally {
+                    setIsSubmitting(false);
+                  }
+                }}
+                className="max-w-2xl mx-auto space-y-6 p-8 bg-white/5 backdrop-blur-sm border border-white/10 rounded-2xl"
+              >
+                <div>
+                  <label htmlFor="email" className="block text-gray-300 mb-2">
+                    Your Email
+                  </label>
+                  <input
+                    type="email"
+                    name="email"
+                    required
+                    placeholder="you@example.com"
+                    className="w-full px-4 py-3 rounded-lg bg-transparent border border-gray-700 focus:border-[#ff4f0f] outline-none text-white"
+                  />
+                </div>
+
+                <div>
+                  <label htmlFor="message" className="block text-gray-300 mb-2">
+                    Description
+                  </label>
+                  <textarea
+                    name="message"
+                    required
+                    rows={5}
+                    placeholder="Write your message here..."
+                    className="w-full px-4 py-3 rounded-lg bg-transparent border border-gray-700 focus:border-[#ff4f0f] outline-none text-white resize-none"
+                  ></textarea>
+                </div>
+
+                <Button
+                  type="submit"
+                  disabled={isSubmitting}
+                  className={`w-full h-12 bg-linear-to-r from-[#ff4f0f] to-[#ff6b3d] hover:from-[#ff6b3d] hover:to-[#ff8560] text-white shadow-lg shadow-[#ff4f0f]/30 ${isSubmitting ? "opacity-70 cursor-not-allowed" : ""
+                    }`}
+                >
+                  {isSubmitting ? "Submitting..." : "Send Message"}
+                </Button>
+              </form>
+            </section>
+
 
             {/* CTA Section */}
             <section className="text-center space-y-6 pt-8">

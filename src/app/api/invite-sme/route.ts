@@ -21,7 +21,7 @@ export async function POST(req: NextRequest) {
     const userId = session.user.id;
 
     // Check if user is admin
-    if (!isAdminUser(session.user.email)) {
+    if (!isAdminUser(session.user.role)) {
       log('warn', 'Non-admin SME invitation attempt', userId, true);
       return NextResponse.json(
         { error: "Unauthorized: Admin access required" },
@@ -30,8 +30,6 @@ export async function POST(req: NextRequest) {
     }
 
     const { smes, questionTitle, questionId, questionDescription } = await req.json();
-
-    console.log("The smes are: ", smes)
 
     if (!smes || !Array.isArray(smes) || smes.length === 0) {
       return NextResponse.json(

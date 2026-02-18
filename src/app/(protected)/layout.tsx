@@ -2,6 +2,8 @@
 import Navbar from "@/components/navbar";
 import { MobileVerificationChecker } from "@/components/auth/mobile-verification-checker";
 import { useSession } from "next-auth/react";
+import { useRouter } from "next/navigation";
+import { useEffect } from "react";
 import Loading from "@/components/ui/loading";
 
 export default function ProtectedLayout({
@@ -10,15 +12,23 @@ export default function ProtectedLayout({
   children: React.ReactNode;
 }) {
   const { data: session, status } = useSession();
+  const router = useRouter();
 
-    // Show loading while checking auth
+  // Redirect unauthenticated users to sign in
+  useEffect(() => {
+    if (status === "unauthenticated") {
+      router.replace("/signin");
+    }
+  }, [status, router]);
+
+  // Show loading while checking auth
   if (status === "loading") {
     return <Loading />;
   }
 
-  // Don't show navbar for unauthenticated users
+  // Block rendering until authenticated
   if (!session) {
-    return <div>{children}</div>;
+    return <Loading />;
   }
 
   return (

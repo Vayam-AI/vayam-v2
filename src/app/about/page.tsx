@@ -1,7 +1,9 @@
 "use client";
 
+import { Button } from "@/components/ui/button";
+import Link from "next/link";
 import { FlipWords } from "@/components/ui/flip-words";
-import LandingNavbar from "@/components/landing-navbar";
+import { LandingNavbar } from "@/components/landing-navbar";
 
 export default function AboutPage() {
   const words = [
@@ -22,7 +24,7 @@ export default function AboutPage() {
       </div>
 
       {/* Navigation */}
-      <LandingNavbar />
+      <LandingNavbar />       
 
       {/* Main Content */}
       <main className="relative z-10">
@@ -30,7 +32,7 @@ export default function AboutPage() {
           <div className="max-w-5xl mx-auto space-y-16">
             {/* Hero Section with Flip Words */}
             <section className="text-center space-y-8">
-                            <h1 className="text-3xl sm:text-4xl lg:text-5xl font-bold leading-tight">
+              <h1 className="text-4xl sm:text-5xl lg:text-6xl font-bold leading-tight">
                 Understanding{" "}
                 <FlipWords
                   words={words}
@@ -64,13 +66,58 @@ export default function AboutPage() {
             </section>
 
             {/* CTA Section */}
-          
+            <section className="text-center space-y-6 pt-8">
+              <p className="text-xl sm:text-2xl text-gray-400 leading-relaxed max-w-3xl mx-auto">
+                Your perspective matters. Join Vayam and help shape a wiser
+                future.
+              </p>
+
+              <div className="flex flex-col sm:flex-row gap-4 justify-center pt-4">
+                <Button
+                  size="lg"
+                  className="bg-linear-to-r from-[#ff4f0f] to-[#ff6b3d] hover:from-[#ff6b3d] hover:to-[#ff8560] text-white border-0 shadow-lg shadow-[#ff4f0f]/30 px-8 h-12 text-base"
+                  asChild
+                >
+                  <Link href="/signup">Get Started</Link>
+                </Button>
+                <Button
+                  size="lg"
+                  variant="outline"
+                  className="border-gray-700 bg-transparent hover:bg-white/5 text-white px-8 h-12 text-base backdrop-blur-sm"
+                  asChild
+                >
+                  <Link href="/signin">Sign In</Link>
+                </Button>
+              </div>
+            </section>
           </div>
         </div>
       </main>
 
       {/* Footer */}
-    
+      <footer className="relative z-10 border-t border-white/10 backdrop-blur-sm bg-black/20 mt-auto">
+        <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-6">
+          <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
+            <p className="text-sm text-gray-400">
+              © 2025 Vayam. All rights reserved.
+            </p>
+            <div className="flex items-center gap-6">
+              <Link
+                href="/about"
+                className="text-sm text-gray-400 hover:text-white transition-colors"
+              >
+                Privacy Policy
+              </Link>
+              <Link
+                href="/about"
+                className="text-sm text-gray-400 hover:text-white transition-colors"
+              >
+                Terms of Service
+              </Link>
+            </div>
+          </div>
+        </div>
+      </footer>
 
       <style jsx>{`
         @keyframes twinkle {

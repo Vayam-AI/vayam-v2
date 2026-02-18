@@ -1,10 +1,23 @@
 import { NextRequest, NextResponse } from "next/server"
 import { auth } from "@/lib/auth-options"
 import { db } from "@/db/drizzle"
-import { questions, users, solutions, pros, cons, votes, participants } from "@/db/schema"
-import { eq, and, sql } from "drizzle-orm"
+import { questions, users, solutions, pros, cons, votes, participants, questionAccess, companyUsers, organizations } from "@/db/schema"
+import { eq, and, sql, inArray } from "drizzle-orm"
 import { isAdminUser } from "@/lib/admin"
 import { z } from "zod"
+
+// Helper: resolve admin's org ID and uid
+async function getAdminOrgAndUid(email: string) {
+  const [user] = await db.select().from(users).where(eq(users.email, email)).limit(1);
+  if (!user) return null;
+  if (!isAdminUser(user.role)) return null;
+  let orgId: number | null = user.organizationId ?? null;
+  if (!orgId) {
+    const [org] = await db.select().from(organizations).where(eq(organizations.adminUserId, user.uid)).limit(1);
+    orgId = org?.id ?? null;
+  }
+  return { orgId, uid: user.uid };
+}
 
 // Validation schema for question updates
 const updateQuestionSchema = z.object({
@@ -72,7 +85,42 @@ export async function GET(
 
     const question = questionResult[0]
 
-        // Check access permissions\n    const userEmail = session.user.email\n    const isAdmin = isAdminUser(userEmail)\n    \n    if (!question.isActive && !isAdmin) {\n      return NextResponse.json({ error: \"Question not found\" }, { status: 404 })\n    }\n\n    // Any authenticated user can view active questions\n    // Only solution creation is restricted to allowedEmails
+    // Check access permissions
+    const isAdmin = isAdminUser(session.user.role)
+
+    if (!question.isActive && !isAdmin) {
+      return NextResponse.json({ error: "Question not found" }, { status: 404 })
+    }
+
+    // Check if user is allowed to view this question
+    if (!isAdmin && question.owner !== userId) {
+      const userEmailLower = session.user.email!.toLowerCase();
+      const inAllowedEmails = question.allowedEmails?.map((e: string) => e.toLowerCase()).includes(userEmailLower);
+
+      // Check explicit questionAccess
+      let hasQuestionAccess = false;
+      try {
+        const cuRows = await db
+          .select({ id: companyUsers.id })
+          .from(companyUsers)
+          .where(eq(companyUsers.email, userEmailLower));
+        if (cuRows.length > 0) {
+          const cuIds = cuRows.map((r) => r.id);
+          const accessRows = await db
+            .select({ questionId: questionAccess.questionId })
+            .from(questionAccess)
+            .where(and(
+              eq(questionAccess.questionId, questionId),
+              inArray(questionAccess.companyUserId, cuIds)
+            ));
+          hasQuestionAccess = accessRows.length > 0;
+        }
+      } catch { /* ignore */ }
+
+      if (!inAllowedEmails && !hasQuestionAccess) {
+        return NextResponse.json({ error: "You don't have access to this question" }, { status: 403 })
+      }
+    }
 
     // Get solutions with their authors
     const solutionsResult = await db
@@ -257,7 +305,10 @@ export async function GET(
     return NextResponse.json({
       success: true,
       data: {
-        question,
+        question: {
+          ...question,
+          hasAccess: true, // user passed access check, so they have access
+        },
         solutions: solutionsWithData,
       },
     })
@@ -290,7 +341,7 @@ export async function PUT(
     }
 
     // Check if user is admin
-    if (!isAdminUser(session.user.email)) {
+    if (!isAdminUser(session.user.role)) {
       return NextResponse.json({ error: "Admin access required" }, { status: 403 })
     }
 
@@ -302,7 +353,7 @@ export async function PUT(
     const body = await request.json()
     const validatedData = updateQuestionSchema.parse(body)
 
-    // Check if question exists
+    // Check if question exists and verify ownership
     const existingQuestion = await db
       .select()
       .from(questions)
@@ -311,6 +362,17 @@ export async function PUT(
 
     if (existingQuestion.length === 0) {
       return NextResponse.json({ error: "Question not found" }, { status: 404 })
+    }
+
+    // Verify the admin owns this question or it belongs to their org
+    const admin = await getAdminOrgAndUid(session.user.email!);
+    if (admin) {
+      const q = existingQuestion[0];
+      const ownsQuestion = q.owner === admin.uid;
+      const sameOrg = admin.orgId && q.organizationId === admin.orgId;
+      if (!ownsQuestion && !sameOrg) {
+        return NextResponse.json({ error: "You don't have permission to edit this question" }, { status: 403 });
+      }
     }
 
     // Update the question
@@ -370,7 +432,7 @@ export async function DELETE(
     }
 
     // Check if user is admin
-    if (!isAdminUser(session.user.email)) {
+    if (!isAdminUser(session.user.role)) {
       return NextResponse.json({ error: "Admin access required" }, { status: 403 })
     }
 
@@ -379,7 +441,7 @@ export async function DELETE(
       return NextResponse.json({ error: "Invalid question ID" }, { status: 400 })
     }
 
-    // Check if question exists
+    // Check if question exists and verify ownership
     const existingQuestion = await db
       .select()
       .from(questions)
@@ -388,6 +450,17 @@ export async function DELETE(
 
     if (existingQuestion.length === 0) {
       return NextResponse.json({ error: "Question not found" }, { status: 404 })
+    }
+
+    // Verify the admin owns this question or it belongs to their org
+    const admin = await getAdminOrgAndUid(session.user.email!);
+    if (admin) {
+      const q = existingQuestion[0];
+      const ownsQuestion = q.owner === admin.uid;
+      const sameOrg = admin.orgId && q.organizationId === admin.orgId;
+      if (!ownsQuestion && !sameOrg) {
+        return NextResponse.json({ error: "You don't have permission to delete this question" }, { status: 403 });
+      }
     }
 
     // Get all solutions for this question to cascade delete properly

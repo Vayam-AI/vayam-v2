@@ -1,36 +1,45 @@
-// Admin emails that can access conversation creation and dashboard
+// Valid user roles
+export type UserRole = "admin" | "company_admin" | "user";
+
+// Platform-level admin emails (super admins) — used ONLY during signup to auto-assign "admin" role
 export const ADMIN_EMAILS = [
   "keerolla@gmail.com",
-  "Keerthi@vayam.ai", 
+  "Keerthi@vayam.ai",
   "we@vayam.ai",
-  "abhiramjaini28@gmail.com",
 ];
 
 /**
- * Check if a user email is in the admin list
- * @param email - User email to check
- * @returns boolean - True if user is admin
+ * Check if an email is in the hardcoded platform admin list.
+ * Used during signup to auto-assign the "admin" role.
  */
-export function isAdminUser(email: string | null | undefined): boolean {
+export function isPlatformAdminEmail(email: string | null | undefined): boolean {
   return email ? ADMIN_EMAILS.includes(email) : false;
 }
 
 /**
- * Middleware to check if user has admin access
- * @param email - User email to check
- * @throws Error if user is not admin
+ * Check if a user has admin-level access (platform admin OR company admin).
+ * Should be called with the `role` field from the session/JWT.
  */
-export function requireAdmin(email: string | null | undefined): void {
-  if (!isAdminUser(email)) {
-    throw new Error("Unauthorized: Admin access required");
-  }
+export function isAdminUser(role: UserRole | string | undefined | null): boolean {
+  return role === "admin" || role === "company_admin";
+}
+
+/**
+ * Check if a user is a platform-level admin (super admin).
+ */
+export function isPlatformAdmin(role: UserRole | string | undefined | null): boolean {
+  return role === "admin";
+}
+
+/**
+ * Check if a user is a company admin.
+ */
+export function isCompanyAdmin(role: UserRole | string | undefined | null): boolean {
+  return role === "company_admin";
 }
 
 /**
  * Check if a user can contribute solutions to a question
- * @param email - User email to check
- * @param allowedEmails - Array of allowed emails for the question
- * @returns boolean - True if user can contribute
  */
 export function canContributeSolution(email: string | null | undefined, allowedEmails: string[]): boolean {
   return email ? allowedEmails.includes(email) : false;

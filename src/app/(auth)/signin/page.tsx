@@ -184,7 +184,7 @@ export default function SignInPage() {
             onLoadingChange={setIsLoading}
           />
 
-          <div className="text-center">
+          <div className="text-center space-y-2">
             <p className="text-sm text-muted-foreground">
               Don&apos;t have an account?{" "}
               <Link 
@@ -192,6 +192,15 @@ export default function SignInPage() {
                 className="text-primary hover:text-primary/80 font-medium underline-offset-4 hover:underline transition-colors"
               >
                 Sign up
+              </Link>
+            </p>
+            <p className="text-sm text-muted-foreground">
+              Want to register your company?{" "}
+              <Link 
+                href="/admin-signup" 
+                className="text-primary hover:text-primary/80 font-medium underline-offset-4 hover:underline transition-colors"
+              >
+                Admin Sign Up
               </Link>
             </p>
           </div>

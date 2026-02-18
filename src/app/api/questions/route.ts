@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth-options";
 import { db } from "@/db/drizzle";
-import { questions, users } from "@/db/schema";
-import { eq } from "drizzle-orm";
+import { questions, users, questionAccess, companyUsers, organizations } from "@/db/schema";
+import { eq, and, or, inArray } from "drizzle-orm";
 import { isAdminUser } from "@/lib/admin";
 import { createQuestionSchema } from "@/validators/vayam";
 import { EmailNotifications } from "@/utils/email-templates";
@@ -20,7 +20,7 @@ export async function POST(req: NextRequest) {
     }
 
     // Check if user is admin
-    if (!isAdminUser(session.user.email)) {
+    if (!isAdminUser(session.user.role)) {
       log('warn', 'Non-admin tried to create question', userId, isAuthenticated);
       return NextResponse.json(
         { error: "Unauthorized: Admin access required" },
@@ -62,18 +62,30 @@ export async function POST(req: NextRequest) {
       tags = [],
       allowedEmails = [],
       isActive = true,
+      isPublic = true,
+      organizationId,
     } = validationResult.data;
 
-    // Validation for private questions
-    if (allowedEmails.length === 0) {
-      return NextResponse.json(
-        {
-          success: false,
-          error: "Validation Error",
-          message: "Questions require at least one allowed email",
-        },
-        { status: 400 }
-      );
+    // Always include the creator's own email in allowedEmails
+    const creatorEmail = session.user.email!.toLowerCase();
+    if (!allowedEmails.map(e => e.toLowerCase()).includes(creatorEmail)) {
+      allowedEmails.push(creatorEmail);
+    }
+
+    // If organizationId is provided, verify user has access
+    if (organizationId) {
+      const [user] = await db
+        .select()
+        .from(users)
+        .where(eq(users.email, session.user.email))
+        .limit(1);
+
+      if (!user || (user.organizationId !== organizationId && !isAdminUser(user.role))) {
+        return NextResponse.json(
+          { error: "Unauthorized: You don't have access to this organization" },
+          { status: 403 }
+        );
+      }
     }
 
     // Create the question
@@ -86,6 +98,8 @@ export async function POST(req: NextRequest) {
         allowedEmails,
         owner: userRecord.uid,
         isActive,
+        isPublic: isPublic ?? true,
+        organizationId: organizationId || null,
         participantCount: 0,
         logos: [],
         infoImages: [],
@@ -169,13 +183,36 @@ export async function GET() {
       return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
     }
 
-    // Get all questions (active for regular users, all for admins)
+    // Get current user to check their access type
+    const [currentUser] = await db
+      .select()
+      .from(users)
+      .where(eq(users.email, session.user.email))
+      .limit(1);
+
+    if (!currentUser) {
+      return NextResponse.json({ error: "User not found" }, { status: 404 });
+    }
+
+    // Get all questions with unified access control
     let allQuestions;
+    const isAdmin = isAdminUser(session.user?.role);
+    const userEmail = session.user.email!.toLowerCase();
+
+    // Determine user's organization
+    let userOrgId: number | null = currentUser.organizationId;
+    if (isAdmin && !userOrgId) {
+      const [org] = await db
+        .select({ id: organizations.id })
+        .from(organizations)
+        .where(eq(organizations.adminUserId, currentUser.uid))
+        .limit(1);
+      userOrgId = org?.id ?? null;
+    }
+
     try {
-      // If admin, get all questions; otherwise only active ones
-      const whereCondition = isAdminUser(session.user?.email)
-        ? undefined
-        : eq(questions.isActive, true);
+      // Admins see all questions (including inactive); regular users only active
+      const whereCondition = isAdmin ? undefined : eq(questions.isActive, true);
 
       allQuestions = await db
         .select({
@@ -187,6 +224,8 @@ export async function GET() {
           allowedEmails: questions.allowedEmails,
           owner: questions.owner,
           isActive: questions.isActive,
+          isPublic: questions.isPublic,
+          organizationId: questions.organizationId,
           createdAt: questions.createdAt,
           updatedAt: questions.updatedAt,
           ownerEmail: users.email,
@@ -197,7 +236,6 @@ export async function GET() {
         .where(whereCondition);
     } catch (dbError) {
       console.error("Database query error:", dbError);
-      // If table doesn't exist or other DB error, return empty array
       return NextResponse.json({
         success: true,
         data: [],
@@ -205,7 +243,6 @@ export async function GET() {
       });
     }
 
-    // Handle case when no questions exist
     if (!allQuestions || allQuestions.length === 0) {
       return NextResponse.json({
         success: true,
@@ -214,15 +251,39 @@ export async function GET() {
       });
     }
 
-    // Filter questions based on user access
+    // Get question IDs this user has explicit access to via question_access
+    let accessQuestionIds: number[] = [];
+    try {
+      const cuRows = await db
+        .select({ id: companyUsers.id })
+        .from(companyUsers)
+        .where(eq(companyUsers.email, userEmail));
+
+      if (cuRows.length > 0) {
+        const cuIds = cuRows.map((r) => r.id);
+        const accessRows = await db
+          .select({ questionId: questionAccess.questionId })
+          .from(questionAccess)
+          .where(inArray(questionAccess.companyUserId, cuIds));
+        accessQuestionIds = accessRows.map((r) => r.questionId);
+      }
+    } catch { /* ignore */ }
+
+    // Unified access filter — same rules for admin and regular users
     const accessibleQuestions = allQuestions.filter(question => {
-      const isAdmin = isAdminUser(session.user?.email);
+      // Owner always sees their own questions
+      if (question.owner === currentUser.uid) return true;
 
-      // Admins can see all questions (active and inactive)
-      if (isAdmin) return true;
+      // Same organization
+      if (userOrgId && question.organizationId === userOrgId) return true;
 
-      // Regular users can see all active questions (not just allowed emails)
-      return question.isActive;
+      // Explicit access via questionAccess table
+      if (accessQuestionIds.includes(question.id)) return true;
+
+      // Email in the allowedEmails list
+      if (question.allowedEmails && question.allowedEmails.map(e => e.toLowerCase()).includes(userEmail)) return true;
+
+      return false;
     });
 
     // Log successful fetch

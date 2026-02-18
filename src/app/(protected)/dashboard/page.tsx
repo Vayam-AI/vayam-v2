@@ -44,7 +44,7 @@ export default function DashboardPage() {
   
 
   // Check if user is admin
-  const isAdmin = isAdminUser(session?.user?.email);
+  const isAdmin = isAdminUser(session?.user?.role);
 
 useEffect(() => {
   if (status === "unauthenticated" && !toastShownRef.current) {

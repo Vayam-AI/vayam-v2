@@ -28,6 +28,7 @@ import { useState } from "react";
 import { Plus, X } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { createQuestionSchema, type CreateQuestionData } from "@/validators/vayam";
+import { useSession } from "next-auth/react";
 
 // Available tags for questions
 const AVAILABLE_TAGS = [
@@ -48,10 +49,10 @@ const AVAILABLE_TAGS = [
 type FormData = CreateQuestionData;
 
 export const CreateQuestion = () => {
+  const { data: session } = useSession();
   const [open, setOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [customTag, setCustomTag] = useState("");
-  const [emailInput, setEmailInput] = useState("");
 
   const form = useForm<FormData>({
     resolver: zodResolver(createQuestionSchema),
@@ -87,35 +88,15 @@ export const CreateQuestion = () => {
     }
   };
 
-  const handleAddEmail = () => {
-    if (emailInput.trim()) {
-      const currentEmails = form.getValues("allowedEmails") || [];
-      if (!currentEmails.includes(emailInput.trim())) {
-        form.setValue("allowedEmails", [...currentEmails, emailInput.trim()]);
-        setEmailInput("");
-      } else {
-        toast.error("This email is already added");
-      }
-    }
-  };
-
-  const handleRemoveEmail = (email: string) => {
-    const currentEmails = form.getValues("allowedEmails") || [];
-    form.setValue(
-      "allowedEmails",
-      currentEmails.filter((e) => e !== email)
-    );
-  };
-
+  const onSubmit: SubmitHandler<FormData> = async (values) => {
   const onSubmit: SubmitHandler<FormData> = async (values) => {
     try {
       setIsLoading(true);
-      
-      if (!values.allowedEmails || values.allowedEmails.length === 0) {
-        toast.error("You must specify at least one allowed email for SME access");
-        setIsLoading(false);
-        return;
-      }
+
+      // Auto-include admin email
+      const adminEmail = session?.user?.email?.toLowerCase() || "";
+      const emails = adminEmail ? [adminEmail] : [];
+      values.allowedEmails = emails;
 
       const response = await axios.post("/api/questions", values, {
         validateStatus: (status) => status < 500,
@@ -310,60 +291,6 @@ export const CreateQuestion = () => {
                 )}
               />
             </div>
-
-            <div className="space-y-4">
-              <FormField
-                control={form.control}
-                name="allowedEmails"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Allowed SME Emails *</FormLabel>
-                    <FormDescription>
-                      Add emails of Subject Matter Experts who should be able to contribute solutions. All questions are private and require SME access.
-                    </FormDescription>
-                    <div className="flex gap-2 mt-2">
-                        <Input
-                          type="email"
-                          value={emailInput}
-                          onChange={(e) => setEmailInput(e.target.value)}
-                          onKeyDown={(e) => {
-                            if (e.key === "Enter") {
-                              e.preventDefault();
-                              handleAddEmail();
-                            }
-                          }}
-                          placeholder="Enter SME email address"
-                          disabled={isLoading}
-                        />
-                        <Button
-                          type="button"
-                          onClick={handleAddEmail}
-                          disabled={!emailInput.trim() || isLoading}
-                          variant="outline"
-                        >
-                          Add Email
-                        </Button>
-                      </div>
-                      <div className="mt-3 flex flex-wrap gap-2">
-                        {(field.value || []).map((email) => (
-                          <Badge
-                            key={email}
-                            variant="default"
-                            className="cursor-pointer bg-primary hover:bg-primary/90"
-                          >
-                            {email}
-                            <X
-                              className="ml-1 h-3 w-3"
-                              onClick={() => handleRemoveEmail(email)}
-                            />
-                          </Badge>
-                        ))}
-                      </div>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-              </div>
 
             <Button 
               type="submit" 

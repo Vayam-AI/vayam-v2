@@ -2,8 +2,9 @@ import GoogleProvider from "next-auth/providers/google";
 import CredentialsProvider from "next-auth/providers/credentials";
 import NextAuth, { NextAuthConfig } from "next-auth";
 import { db } from "@/db/drizzle";
-import { users } from "@/db/schema";
-import { eq } from "drizzle-orm";
+import { users, companyUsers } from "@/db/schema";
+import { eq, and } from "drizzle-orm";
+import { isPlatformAdminEmail } from "@/lib/admin";
 import { passwordService } from "@/utils/password";
 import { EmailNotifications } from "@/utils/email-templates";
 import { log } from "@/lib/logger";
@@ -139,6 +140,9 @@ export const authOptions: NextAuthConfig = {
           let dbUser = existingUser[0];
           const userNameFromEmail = user.email.split("@")[0];
           if (!dbUser) {
+            // Determine role for new user
+            const autoRole = isPlatformAdminEmail(user.email) ? "admin" : "user";
+
             // Create new user for Google OAuth
             const inserted = await db
               .insert(users)
@@ -148,6 +152,7 @@ export const authOptions: NextAuthConfig = {
                 provider: 'google',
                 isEmailVerified: true, // Google accounts are pre-verified
                 pwhash: null, // No password for OAuth users
+                role: autoRole,
             })
             .returning();
             dbUser = inserted[0];
@@ -183,8 +188,17 @@ export const authOptions: NextAuthConfig = {
           }
 
           token.userId = dbUser.uid.toString();
+          token.role = dbUser.role ?? "user";
+          token.organizationId = dbUser.organizationId ?? null;
+
+          // Link company_users record if exists
+          try {
+            await db
+              .update(companyUsers)
+              .set({ isRegistered: true, userId: dbUser.uid, updatedAt: new Date() })
+              .where(and(eq(companyUsers.email, user.email!.toLowerCase()), eq(companyUsers.isRegistered, false)));
+          } catch { /* ignore linkage errors */ }
         } catch (error) {
-            // JWT callback error logged in development only
             if (process.env.NODE_ENV === 'development') {
               console.error("JWT callback error:", error);
             }
@@ -194,7 +208,19 @@ export const authOptions: NextAuthConfig = {
       
       // Handle credentials signin (email/password)
       if (user?.email && account && account.provider === 'credentials') {
+        // Fetch org info for credentials users
+        const [dbUser] = await db.select().from(users).where(eq(users.email, user.email!)).limit(1);
         token.userId = user.id;
+        token.role = dbUser?.role ?? "user";
+        token.organizationId = dbUser?.organizationId ?? null;
+
+        // Link company_users record if exists
+        try {
+          await db
+            .update(companyUsers)
+            .set({ isRegistered: true, userId: dbUser?.uid, updatedAt: new Date() })
+            .where(and(eq(companyUsers.email, user.email!.toLowerCase()), eq(companyUsers.isRegistered, false)));
+        } catch { /* ignore */ }
       }
       
       return token;
@@ -203,6 +229,8 @@ export const authOptions: NextAuthConfig = {
     async session({ session, token }) {
       if (session.user && token.userId) {
         session.user.id = token.userId as string;
+        session.user.role = (token.role as string) || "user";
+        session.user.organizationId = (token.organizationId as number) || undefined;
       }
       return session;
     },
@@ -234,7 +262,15 @@ declare module "next-auth" {
       email: string;
       name: string;
       image?: string;
+      role: string; // "admin" | "company_admin" | "user"
+      organizationId?: number;
     };
+  }
+
+  interface JWT {
+    userId?: string;
+    role?: string;
+    organizationId?: number | null;
   }
 }
 

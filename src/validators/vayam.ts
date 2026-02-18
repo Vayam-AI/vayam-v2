@@ -7,6 +7,8 @@ export const createQuestionSchema = z.object({
   tags: z.array(z.string().min(1).max(50, "Tag too long")).max(10, "Maximum 10 tags allowed").optional(),
   allowedEmails: z.array(z.string().email("Invalid email format")).max(50, "Maximum 50 emails allowed").optional(),
   isActive: z.boolean().optional(),
+  isPublic: z.boolean().optional(),
+  organizationId: z.number().int().positive("Invalid organization ID").optional(),
 });
 
 export const updateQuestionSchema = createQuestionSchema.partial();

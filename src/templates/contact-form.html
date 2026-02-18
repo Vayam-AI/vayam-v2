@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>New Message from Contact Form</title>
+  <style>
+    body {
+      font-family: Arial, Helvetica, sans-serif;
+      background-color: #f9f9f9;
+      margin: 0;
+      padding: 0;
+      color: #222222;
+    }
+    .container {
+      max-width: 600px;
+      margin: 40px auto;
+      background-color: #ffffff;
+      border-radius: 8px;
+      overflow: hidden;
+      box-shadow: 0 0 10px rgba(0,0,0,0.05);
+      padding: 40px;
+    }
+    h1 {
+      font-size: 26px;
+      color: #000000;
+      text-align: center;
+      margin-bottom: 10px;
+    }
+    .subtitle {
+      text-align: center;
+      color: #555555;
+      font-size: 15px;
+      margin-bottom: 30px;
+    }
+    p {
+      line-height: 1.6;
+      margin-bottom: 16px;
+      font-size: 15px;
+      color: #333333;
+    }
+    .field {
+      background: #f4f4f4;
+      border-radius: 6px;
+      padding: 12px 16px;
+      margin-bottom: 16px;
+    }
+    .label {
+      font-weight: bold;
+      color: #111111;
+      margin-bottom: 6px;
+      display: block;
+      font-size: 14px;
+    }
+    .value {
+      color: #333333;
+      font-size: 15px;
+      white-space: pre-wrap;
+    }
+    .footer {
+      margin-top: 40px;
+      padding-top: 20px;
+      border-top: 1px solid #dddddd;
+      font-size: 12px;
+      color: #777777;
+      text-align: center;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>New Contact Form Submission</h1>
+    <p class="subtitle">Someone just reached out via the Vayam contact page.</p>
+
+    <div class="field">
+      <span class="label">Email:</span>
+      <span class="value">{{email}}</span>
+    </div>
+
+    <div class="field">
+      <span class="label">Message:</span>
+      <span class="value">{{description}}</span>
+    </div>
+
+    <p>Kindly review and respond if necessary.</p>
+
+    <div class="footer">
+      <p>This email was sent automatically from the Vayam contact form.</p>
+      <p>© 2025 Vayam. All rights reserved.</p>
+    </div>
+  </div>
+</body>
+</html>

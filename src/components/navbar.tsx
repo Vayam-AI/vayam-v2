@@ -22,6 +22,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { useState, useEffect } from "react";
 import { isAdminUser } from "@/lib/admin";
+import { ExplorePublicButton } from "@/components/explore-public-button";
 
 
 export default function Navbar() {
@@ -34,7 +35,7 @@ export default function Navbar() {
     setIsClientMounted(true);
   }, []);
 
-  const isAdmin = isAdminUser(session?.user?.email);
+  const isAdmin = isAdminUser(session?.user?.role);
 
   const handleLogout = async () => {
     try {
@@ -102,6 +103,7 @@ export default function Navbar() {
                 </div>
               ) : (
                 <div className="flex items-center space-x-2">
+                  <ExplorePublicButton />
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>
                       <Button
@@ -174,6 +176,18 @@ export default function Navbar() {
                             >
                               <MessageSquare className="h-4 w-4" />
                               Manage Questions
+                            </Link>
+                          </DropdownMenuItem>
+                          <DropdownMenuItem
+                            asChild
+                            className="hover:bg-muted/80 transition-colors rounded-md my-1"
+                          >
+                            <Link
+                              href="/admin/company-users"
+                              className="flex items-center gap-3 px-3 py-2"
+                            >
+                              <User className="h-4 w-4" />
+                              Company Users
                             </Link>
                           </DropdownMenuItem>
                         </>
@@ -354,6 +368,21 @@ export default function Navbar() {
                             >
                               <MessageSquare className="h-5 w-5" />
                               Manage Questions
+                            </Link>
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            asChild
+                            className="w-full justify-start h-12 hover:bg-muted/80 transition-all duration-200"
+                          >
+                            <Link
+                              href="/admin/company-users"
+                              onClick={closeMobileMenu}
+                              className="flex items-center gap-4 text-base"
+                            >
+                              <User className="h-5 w-5" />
+                              Company Users
                             </Link>
                           </Button>
                         </>

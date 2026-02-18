@@ -10,7 +10,9 @@ import {
   Users,
   Edit,
   Trash2,
-  Mail,
+  Share2,
+  ShieldCheck,
+  FileText,
 } from "lucide-react";
 
 interface Question {
@@ -34,7 +36,9 @@ interface QuestionCardProps {
   selected: boolean;
   onEdit: (question: Question) => void;
   onDelete: (question: Question) => void;
-  onInvite: (question: Question) => void;
+  onShare: (question: Question) => void;
+  onManageAccess?: (question: Question) => void;
+  onEmailTemplate?: (question: Question) => void;
 }
 
 export function QuestionCard({
@@ -43,7 +47,9 @@ export function QuestionCard({
   selected,
   onEdit,
   onDelete,
-  onInvite,
+  onShare,
+  onManageAccess,
+  onEmailTemplate,
 }: QuestionCardProps) {
   const handleEdit = (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -55,9 +61,19 @@ export function QuestionCard({
     onDelete(question);
   };
 
-  const handleInvite = (e: React.MouseEvent) => {
+  const handleShare = (e: React.MouseEvent) => {
     e.stopPropagation();
-    onInvite(question);
+    onShare(question);
+  };
+
+  const handleManageAccess = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    onManageAccess?.(question);
+  };
+
+  const handleEmailTemplate = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    onEmailTemplate?.(question);
   };
 
   return (
@@ -93,15 +109,37 @@ export function QuestionCard({
               </CardTitle>
               {/* Action buttons moved to top-right, always visible */}
               <div className="flex gap-1 shrink-0">
-                <Button
-                  size="sm"
-                  variant="ghost"
-                  onClick={handleInvite}
-                  className="h-6 w-6 p-0 hover:bg-blue-500/10"
-                  title="Invite SMEs"
-                >
-                  <Mail className="h-3 w-3 text-blue-600" />
-                </Button>
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    onClick={handleShare}
+                    className="h-6 w-6 p-0 hover:bg-green-500/10"
+                    title="Share Question"
+                  >
+                    <Share2 className="h-3 w-3 text-green-600" />
+                  </Button>
+                {onManageAccess && (
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    onClick={handleManageAccess}
+                    className="h-6 w-6 p-0 hover:bg-purple-500/10"
+                    title="Manage Access"
+                  >
+                    <ShieldCheck className="h-3 w-3 text-purple-600" />
+                  </Button>
+                )}
+                {onEmailTemplate && (
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    onClick={handleEmailTemplate}
+                    className="h-6 w-6 p-0 hover:bg-amber-500/10"
+                    title="Email Template"
+                  >
+                    <FileText className="h-3 w-3 text-amber-600" />
+                  </Button>
+                )}
                 <Button
                   size="sm"
                   variant="ghost"

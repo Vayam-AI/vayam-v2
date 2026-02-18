@@ -63,7 +63,9 @@ export default function QuestionDetailsPage() {
     }
   }, [status, router, questionId]);
 
-  const canAddSolution = question?.allowedEmails.includes(session?.user?.email || "") || false;
+  // If the API returned the question, the user has passed the access check
+  // (owner, allowedEmails, or questionAccess) — so they can add solutions
+  const canAddSolution = question?.hasAccess || false;
 
   const fetchQuestionDetails = useCallback(
     async (forceRefetch = false) => {

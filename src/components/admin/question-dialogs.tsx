@@ -14,6 +14,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
+import { Label } from "@/components/ui/label";
 import {
   Form,
   FormControl,
@@ -27,17 +28,19 @@ import {
   Save,
   X,
   Trash2,
-  Mail,
+  Share2,
+  Copy,
+  Check,
+  ExternalLink,
 } from "lucide-react";
+import Image from "next/image";
 import { TagInput } from "@/components/ui/tag-input";
 import { toast } from "sonner";
 import {
   createQuestionSchema,
   updateQuestionSchema,
-  inviteSmeSchema,
   type CreateQuestionData,
   type UpdateQuestionData,
-  type InviteSmeData
 } from "@/validators/vayam";
 
 interface Question {
@@ -70,16 +73,18 @@ interface QuestionDialogsProps {
   setShowDeleteDialog: (show: boolean) => void;
   questionToDelete: Question | null;
 
-  // Invite Dialog
-  showInviteDialog: boolean;
-  setShowInviteDialog: (show: boolean) => void;
-  questionToInvite: Question | null;
+  // Share Dialog
+  showShareDialog: boolean;
+  setShowShareDialog: (show: boolean) => void;
+  questionToShare: Question | null;
+
+  // Admin email — auto-added to allowedEmails on create
+  adminEmail: string;
 
   // Callbacks for parent component
   onQuestionCreated?: () => void;
   onQuestionUpdated?: () => void;
   onQuestionDeleted?: () => void;
-  onInvitesSent?: () => void;
 }
 
 export function QuestionDialogs({
@@ -91,15 +96,22 @@ export function QuestionDialogs({
   showDeleteDialog,
   setShowDeleteDialog,
   questionToDelete,
-  showInviteDialog,
-  setShowInviteDialog,
-  questionToInvite,
+  showShareDialog,
+  setShowShareDialog,
+  questionToShare,
+  adminEmail,
   onQuestionCreated,
   onQuestionUpdated,
   onQuestionDeleted,
-  onInvitesSent,
 }: QuestionDialogsProps) {
   const [loading, setLoading] = useState(false);
+  const [copied, setCopied] = useState(false);
+
+  const copyToClipboard = (text: string) => {
+    navigator.clipboard.writeText(text);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
 
   // Create form
   const createForm = useForm<CreateQuestionData>({
@@ -124,15 +136,6 @@ export function QuestionDialogs({
       isActive: true,
     },
   });
-
-  // Invite form
-  const inviteForm = useForm<InviteSmeData>({
-    resolver: zodResolver(inviteSmeSchema),
-    defaultValues: {
-      emails: [], // instead of smes
-    },
-  });
-
 
   // Initialize edit form when questionToEdit changes
   useEffect(() => {
@@ -160,21 +163,18 @@ export function QuestionDialogs({
     }
   }, [showEditDialog, editForm]);
 
-  useEffect(() => {
-    if (!showInviteDialog) {
-      inviteForm.reset();
-    }
-  }, [showInviteDialog, inviteForm]);
-
   // API call handlers
   const handleCreate = async (data: CreateQuestionData) => {
     setLoading(true);
     try {
+      // Auto-include admin email in allowedEmails
+      const emails = [adminEmail.toLowerCase()];
+
       const response = await axios.post("/api/questions", {
         title: data.title.trim(),
         description: data.description.trim(),
         tags: data.tags,
-        allowedEmails: data.allowedEmails,
+        allowedEmails: emails,
         isPublic: false,
         isActive: data.isActive,
       });
@@ -199,44 +199,17 @@ export function QuestionDialogs({
 
     setLoading(true);
     try {
-      // Check if there are new emails to invite
-      const oldEmails = questionToEdit.allowedEmails || [];
-      const newEmails = (data.allowedEmails || []).filter(
-        (email: string) => !oldEmails.includes(email)
-      );
-
       const response = await axios.put(`/api/questions/${questionToEdit.id}`, {
         title: data.title?.trim(),
         description: data.description?.trim(),
         tags: data.tags,
-        allowedEmails: data.allowedEmails,
+        allowedEmails: questionToEdit.allowedEmails, // preserve existing
         isPublic: false,
         isActive: data.isActive,
       });
 
       if (response.data.success) {
-        // Send invitations to new emails if any
-        if (newEmails.length > 0) {
-          try {
-            await axios.post("/api/invite-sme", {
-              emails: newEmails,
-              questionTitle: data.title,
-              questionId: questionToEdit.id,
-              questionDescription: data.description,
-            });
-            toast.success(
-              `Question updated and invitations sent to ${newEmails.length} new SME(s)!`
-            );
-          } catch (emailError) {
-            console.error("Error sending invitations:", emailError);
-            toast.success(
-              "Question updated successfully, but some invitations failed to send"
-            );
-          }
-        } else {
-          toast.success("Question updated successfully!");
-        }
-
+        toast.success("Question updated successfully!");
         setShowEditDialog(false);
         editForm.reset();
         onQuestionUpdated?.();
@@ -270,59 +243,6 @@ export function QuestionDialogs({
       setLoading(false);
     }
   };
-
-  const handleInviteSME = async (data: InviteSmeData) => {
-    if (!questionToInvite) return;
-    setLoading(true);
-
-    try {
-      const smes = data.emails.map((email) => {
-        const namePart = email.split("@")[0];
-        const formattedName =
-          namePart.charAt(0).toUpperCase() + namePart.slice(1);
-        return { name: formattedName, email };
-      });
-
-      const updatedAllowedEmails = [
-        ...(questionToInvite.allowedEmails || []),
-        ...smes.map((s) => s.email),
-      ].filter((email, index, arr) => arr.indexOf(email) === index);
-
-      const updateResponse = await axios.put(`/api/questions/${questionToInvite.id}`, {
-        title: questionToInvite.title,
-        description: questionToInvite.description,
-        tags: questionToInvite.tags,
-        allowedEmails: updatedAllowedEmails,
-        isPublic: false,
-        isActive: questionToInvite.isActive,
-      });
-
-      if (updateResponse.data.success) {
-        const inviteResponse = await axios.post("/api/invite-sme", {
-          smes,
-          questionTitle: questionToInvite.title,
-          questionId: questionToInvite.id,
-          questionDescription: questionToInvite.description,
-        });
-        
-        if (inviteResponse.data.success) {
-          setShowInviteDialog(false);
-          inviteForm.reset();
-          toast.success(
-            `Invitations sent to ${smes.length} SME${smes.length > 1 ? "s" : ""}!`
-          );
-          onInvitesSent?.();
-        }
-      }
-    } catch (error: unknown) {
-      console.error("Error sending invitations:", error);
-      const err = error as { response?: { data?: { error?: string } } };
-      toast.error(err.response?.data?.error || "Failed to send invitations");
-    } finally {
-      setLoading(false);
-    }
-  };
-
 
   return (
     <>
@@ -392,27 +312,6 @@ export function QuestionDialogs({
                       </FormControl>
                       <FormDescription>
                         {(field.value || []).length}/10 tags
-                      </FormDescription>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-
-                <FormField
-                  control={createForm.control}
-                  name="allowedEmails"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>SME Email Addresses</FormLabel>
-                      <FormControl>
-                        <TagInput
-                          tags={field.value || []}
-                          onChange={field.onChange}
-                          placeholder="Add email addresses..."
-                        />
-                      </FormControl>
-                      <FormDescription>
-                        SMEs will receive email invitations to contribute to this question ({(field.value || []).length}/50 emails)
                       </FormDescription>
                       <FormMessage />
                     </FormItem>
@@ -535,27 +434,6 @@ export function QuestionDialogs({
 
                 <FormField
                   control={editForm.control}
-                  name="allowedEmails"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>SME Email Addresses</FormLabel>
-                      <FormControl>
-                        <TagInput
-                          tags={field.value || []}
-                          onChange={field.onChange}
-                          placeholder="Add email addresses..."
-                        />
-                      </FormControl>
-                      <FormDescription>
-                        SMEs will receive email invitations to contribute to this question. New emails will be automatically invited. ({(field.value || []).length}/50 emails)
-                      </FormDescription>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-
-                <FormField
-                  control={editForm.control}
                   name="isActive"
                   render={({ field }) => (
                     <FormItem className="flex items-center space-x-2">
@@ -639,67 +517,61 @@ export function QuestionDialogs({
         </DialogContent>
       </Dialog>
 
-      {/* Invite SME Dialog - SCROLLABLE */}
-      <Dialog open={showInviteDialog} onOpenChange={setShowInviteDialog}>
-        <DialogContent className="sm:max-w-[600px] max-h-[90vh] flex flex-col p-6">
-          <div className="overflow-y-auto">
-            <DialogHeader className="pb-4">
-              <DialogTitle>Invite SMEs</DialogTitle>
-            </DialogHeader>
-            <Form {...inviteForm}>
-              <form onSubmit={inviteForm.handleSubmit(handleInviteSME)} className="space-y-4">
-                <p className="text-sm text-muted-foreground">
-                  Send email invitations to Subject Matter Experts for this
-                  question:
-                </p>
-                {questionToInvite && (
-                  <div className="p-4 bg-muted rounded-lg">
-                    <p className="font-medium text-sm">
-                      {questionToInvite.title}
-                    </p>
+      {/* Share Dialog */}
+      <Dialog open={showShareDialog} onOpenChange={setShowShareDialog}>
+        <DialogContent className="sm:max-w-[500px]">
+          <DialogHeader>
+            <DialogTitle>Share Question</DialogTitle>
+          </DialogHeader>
+          <div className="py-4 space-y-6">
+            {questionToShare && (
+              <>
+                <div className="p-3 bg-muted rounded-md text-sm">
+                  <span className="font-semibold">{questionToShare.title}</span>
+                </div>
+
+                <div className="flex flex-col items-center gap-4">
+                  <div className="bg-white p-4 rounded-lg border shadow-sm">
+                    {/* QR Code using the same reliable external API as the backend */}
+                    <Image 
+                      src={`https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(`${typeof window !== 'undefined' ? window.location.origin : ''}/questions/${questionToShare.id}`)}`}
+                      alt="Question QR Code"
+                      width={200}
+                      height={200}
+                      className="w-48 h-48"
+                      unoptimized
+                    />
                   </div>
-                )}
-                <FormField
-                  control={inviteForm.control}
-                  name="emails"
-                  render={({ field }) => (
-                    <FormItem className="space-y-2">
-                      <FormLabel>Email Addresses *</FormLabel>
-                      <FormControl>
-                        <TagInput
-                          tags={field.value || []}
-                          onChange={field.onChange}
-                          placeholder="Add email addresses..."
-                          className="w-full"
-                        />
-                      </FormControl>
-                      <FormDescription className="text-xs text-muted-foreground">
-                        These users will receive email invitations to contribute to this question ({(field.value || []).length}/20 emails)
-                      </FormDescription>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-              </form>
-            </Form>
-          </div>
-          <div className="flex justify-end gap-3 pt-6 border-t mt-4">
-            <Button
-              variant="outline"
-              onClick={() => setShowInviteDialog(false)}
-              className="px-4"
-            >
-              <X className="h-4 w-4 mr-2" />
-              Cancel
-            </Button>
-            <Button
-              onClick={inviteForm.handleSubmit(handleInviteSME)}
-              disabled={(inviteForm.watch("emails") || []).length === 0 || loading}
-              className="px-4"
-            >
-              <Mail className="h-4 w-4 mr-2" />
-              Send Invitations
-            </Button>
+                  <p className="text-xs text-muted-foreground text-center">
+                    Scan to view on mobile
+                  </p>
+                </div>
+
+                <div className="space-y-2">
+                  <Label>Public Link</Label>
+                  <div className="flex items-center gap-2">
+                    <div className="flex-1 p-2 bg-muted rounded border text-sm font-mono truncate">
+                      {typeof window !== 'undefined' ? `${window.location.origin}/questions/${questionToShare.id}` : `/questions/${questionToShare.id}`}
+                    </div>
+                    <Button
+                      size="icon"
+                      variant="outline"
+                      onClick={() => copyToClipboard(typeof window !== 'undefined' ? `${window.location.origin}/questions/${questionToShare.id}` : "")}
+                    >
+                      {copied ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
+                    </Button>
+                    <Button
+                      size="icon"
+                      variant="outline"
+                      onClick={() => window.open(`/questions/${questionToShare.id}`, "_blank")}
+                    >
+                      <ExternalLink className="h-4 w-4" />
+                    </Button>
+                  </div>
+                </div>
+
+              </>
+            )}
           </div>
         </DialogContent>
       </Dialog>

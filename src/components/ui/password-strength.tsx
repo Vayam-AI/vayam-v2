@@ -31,7 +31,7 @@ const criteria: PasswordCriteria[] = [
   },
   {
     label: "Contains special character",
-    test: (password) => /[!@#$%^&*(),.?":{}|<>]/.test(password),
+    test: (password) => /[^\w\s]/.test(password),
   },
 ];
 

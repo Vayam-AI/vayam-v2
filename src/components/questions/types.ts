@@ -47,6 +47,7 @@ export interface Question {
   updatedAt: string;
   ownerEmail: string;
   ownerUsername: string | null;
+  hasAccess?: boolean;
 }
 
 // API Response Types for processing server data
