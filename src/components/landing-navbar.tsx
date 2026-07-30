@@ -2,45 +2,113 @@
 
 import Image from "next/image";
 import Link from "next/link";
+import { Menu, X } from "lucide-react";
+import { useState } from "react";
 import { Button } from "@/components/ui/button";
 
 export function LandingNavbar() {
-    return (
-        <nav className="relative z-10 border-b border-white/10 backdrop-blur-sm bg-black/20">
-            <div className="container mx-auto px-4 sm:px-6 lg:px-8">
-                <div className="flex items-center justify-between h-16">
-                    <div className="flex items-center gap-2">
-                        <Link href="/" className="flex items-center">
-                            <Image
-                                src="/logo.png"
-                                alt="Vayam Logo"
-                                width={100}
-                                height={16}
-                                className="rounded-lg cursor-pointer"
-                            />
-                        </Link>
-                    </div>
-                    <div className="flex gap-5">
-                        <div className="hidden md:flex items-center gap-8">
-                            <Link href="/about" className="text-gray-300 hover:text-white transition-colors">
-                                About
-                            </Link>
-                            <Link href="/invite-sme" className="text-gray-300 hover:text-white transition-colors">
-                                Become an SME
-                            </Link>
-                            <Link href="/contact" className="text-gray-300 hover:text-white transition-colors">
-                                Contact
-                            </Link>
-                        </div>
-                        <Button
-                            className="bg-linear-to-r from-[#ff4f0f] to-[#ff6b3d] hover:from-[#ff6b3d] hover:to-[#ff8560] text-white border-0 shadow-lg shadow-[#ff4f0f]/30"
-                            asChild
-                        >
-                            <Link href="/signin">Get Started</Link>
-                        </Button>
-                    </div>
-                </div>
+  const [isOpen, setIsOpen] = useState(false);
+
+  const closeMenu = () => setIsOpen(false);
+
+  const navLinks = [
+    { href: "/#how-it-works", label: "How it works" },
+    { href: "/#why-vayam", label: "Why Vayam" },
+    { href: "/invite-sme", label: "For Experts" },
+  ];
+
+  return (
+    <nav className="sticky top-0 z-50 border-b border-white/10 bg-[#131514]/90 backdrop-blur-md">
+      <div className="mx-auto max-w-6xl px-4 sm:px-6 lg:px-8">
+        <div className="flex h-16 items-center justify-between gap-4">
+          <Link
+            href="/"
+            className="flex items-center rounded-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#ff7a45]"
+            onClick={closeMenu}
+          >
+            <Image
+              src="/logo.png"
+              alt="Vayam"
+              width={100}
+              height={38}
+              className="h-auto w-[100px] rounded-lg"
+              priority
+            />
+          </Link>
+
+          <div className="hidden items-center gap-6 md:flex">
+            {navLinks.map((link) => (
+              <Link
+                key={link.href}
+                href={link.href}
+                className="rounded-md text-sm font-medium text-[#cbd4d8] transition-colors hover:text-[#f7f2ea] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#ff7a45]"
+              >
+                {link.label}
+              </Link>
+            ))}
+            <Link
+              href="/signin"
+              className="rounded-md text-sm font-semibold text-[#f7f2ea] transition-colors hover:text-[#ffb08a] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#ff7a45]"
+            >
+              Sign in
+            </Link>
+            <Button
+              className="h-10 rounded-md border-0 bg-[#ff4f0f] px-5 text-sm font-semibold text-white shadow-none hover:bg-[#ff6b3d] focus-visible:ring-[#ff9a6c]"
+              asChild
+            >
+              <Link href="/dashboard">Explore Challenges</Link>
+            </Button>
+          </div>
+
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon"
+            className="h-10 w-10 rounded-md text-[#f7f2ea] hover:bg-white/10 focus-visible:ring-[#ff7a45] md:hidden"
+            aria-label={isOpen ? "Close navigation menu" : "Open navigation menu"}
+            aria-expanded={isOpen}
+            aria-controls="landing-mobile-menu"
+            onClick={() => setIsOpen((current) => !current)}
+          >
+            {isOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
+          </Button>
+        </div>
+
+        {isOpen && (
+          <div
+            id="landing-mobile-menu"
+            className="border-t border-white/10 py-4 md:hidden"
+          >
+            <div className="flex flex-col gap-2">
+              {navLinks.map((link) => (
+                <Link
+                  key={link.href}
+                  href={link.href}
+                  className="rounded-md px-2 py-3 text-sm font-medium text-[#d6dcdf] hover:bg-white/[0.08] hover:text-[#f7f2ea] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#ff7a45]"
+                  onClick={closeMenu}
+                >
+                  {link.label}
+                </Link>
+              ))}
+              <Link
+                href="/signin"
+                className="rounded-md px-2 py-3 text-sm font-semibold text-[#f7f2ea] hover:bg-white/[0.08] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#ff7a45]"
+                onClick={closeMenu}
+              >
+                Sign in
+              </Link>
+              <Button
+                className="mt-2 h-11 rounded-md border-0 bg-[#ff4f0f] text-sm font-semibold text-white shadow-none hover:bg-[#ff6b3d] focus-visible:ring-[#ff9a6c]"
+                asChild
+              >
+                <Link href="/dashboard" onClick={closeMenu}>
+                  Explore Challenges
+                </Link>
+              </Button>
             </div>
-        </nav>
-    );
+          </div>
+        )}
+      </div>
+    </nav>
+  );
 }
