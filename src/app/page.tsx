@@ -20,8 +20,8 @@ export default function Home() {
   if (status === "authenticated") return null;
 
   return (
-    <div className="min-h-screen overflow-x-hidden bg-[#111312] text-[#f7f2ea]">
-      <LandingNavbar />
+    <div className="min-h-screen overflow-x-hidden bg-white text-[#201D1A] [font-family:var(--vayam-sans)]">
+      <LandingNavbar variant="notation" />
       <HeroSection />
       <Footer />
     </div>

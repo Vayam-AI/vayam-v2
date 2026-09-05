@@ -5,7 +5,7 @@ import Providers from "@/components/providers";
 export const metadata: Metadata = {
   title: "Vayam",
   description:
-    "A collective-intelligence platform for constructive civic participation.",
+    "A place to answer real questions, see what others see, and understand what a discussion is becoming.",
 };
 
 export default function RootLayout({
