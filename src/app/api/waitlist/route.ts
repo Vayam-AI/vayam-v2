@@ -1,5 +1,25 @@
 import { db } from "@/db/drizzle";
 import { waitlist } from "@/db/schema";
+import { sql } from "drizzle-orm";
+
+let tableReady: Promise<void> | null = null;
+
+function ensureWaitlistTable() {
+  if (!tableReady) {
+    tableReady = db
+      .execute(
+        sql`
+          CREATE TABLE IF NOT EXISTS waitlist (
+            id SERIAL PRIMARY KEY,
+            email VARCHAR(255) NOT NULL UNIQUE,
+            created_at TIMESTAMP DEFAULT NOW()
+          )
+        `,
+      )
+      .then(() => undefined);
+  }
+  return tableReady;
+}
 
 export async function POST(req: Request) {
   try {
@@ -13,11 +33,16 @@ export async function POST(req: Request) {
       );
     }
 
+    await ensureWaitlistTable();
+
     // Insert; if the email is already on the list, treat it as success (idempotent).
-    await db.insert(waitlist).values({ email: raw }).onConflictDoNothing();
+    await db.insert(waitlist).values({ email: raw }).onConflictDoNothing({
+      target: waitlist.email,
+    });
 
     return Response.json({ success: true });
-  } catch {
+  } catch (error) {
+    console.error("Waitlist signup failed:", error);
     return Response.json(
       { success: false, error: "Something went wrong. Please try again." },
       { status: 500 },
