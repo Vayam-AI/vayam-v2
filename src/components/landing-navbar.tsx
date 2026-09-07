@@ -15,9 +15,9 @@ export function LandingNavbar({ variant = "dark" }: LandingNavbarProps) {
   const closeMenu = () => setIsOpen(false);
 
   const navLinks = [
-    { href: "/#discussions", label: "Discussions" },
-    { href: "/#learn", label: "Learn" },
-    { href: "/#why-vayam", label: "Why Vayam" },
+    { href: "/#question-demo", label: "Discussions" },
+    { href: "/#capabilities", label: "Learn" },
+    { href: "/#big-idea", label: "Why Vayam" },
   ];
 
   if (isNotation) {

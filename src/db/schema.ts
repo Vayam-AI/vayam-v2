@@ -369,3 +369,10 @@ export const questionEmailTemplatesRelations = relations(questionEmailTemplates,
     references: [users.uid],
   }),
 }));
+
+// Waitlist — public marketing-site signups (email only)
+export const waitlist = pgTable("waitlist", {
+  id: serial("id").primaryKey(),
+  email: varchar("email", { length: 255 }).notNull().unique(),
+  createdAt: timestamp("created_at").defaultNow(),
+});
